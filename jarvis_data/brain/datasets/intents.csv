@@ -1,0 +1,55 @@
+text,intent
+open youtube,open
+opne youtub,open
+open calculator,open
+open notepad,open
+scroll,scroll
+scroll the shorts,auto_scroll
+keep scrolling youtube shorts,auto_scroll
+stop scrolling,stop_scroll
+write python code for calculator,code
+create html code for app,code
+write email about meeting,email_draft
+send email to alex subject update body hello,email_send
+read link https://example.com,read_link
+open wikipedia of python and read it,wikipedia
+daily briefing,news
+share news to whatsapp,share
+terminal dir,terminal
+run command echo hello,terminal
+scroll the shorts,auto_scroll
+tell me about KIIT University,answer
+what is machine learning,answer
+explain photosynthesis,answer
+who is Nikola Tesla,answer
+write python code for a calculator,code
+create javascript code for a todo app,code
+write java code for name fixer,code
+make sql for users table,code
+make html css javascript website for name fixer,code
+create react dashboard,code
+make nextjs landing page,code
+preview the website,code
+write python tkinter calculator,code
+create python file organizer,code
+make python script to rename files,code
+draft email to teacher for leave,email_draft
+write whatsapp message about meeting,email_draft
+send a professional job inquiry email,email_draft
+business news,news
+sports news,news
+ai news today,news
+latest technology news,news
+open calculator,open
+open youtube shorts and scroll,open
+run terminal dir,open
+send email to Alex,security
+share news to WhatsApp,security
+run terminal command,security
+shutdown computer,security
+train from dataset mydata.csv,training
+add link https://github.com/example/repo,training
+learn knowledge title CSS text responsive layout rules,training
+continue,chat
+rewrite it better,chat
+i wrote spelling wrong still understand,chat

@@ -17,7 +17,7 @@ function windowLoadHandler() {
 }
 
 function canvasSupport() {
-	return Modernizr.canvas;
+	return !!document.createElement('canvas').getContext;
 }
 
 function canvasApp() {
@@ -79,8 +79,8 @@ function canvasApp() {
 		rgbString = "rgba(" + r + "," + g + "," + b + ","; //partial string for color which will be completed by appending alpha value.
 		particleAlpha = 1; //maximum alpha
 
-		displayWidth = theCanvas.width;
-		displayHeight = theCanvas.height;
+		resizeCanvas();
+		window.addEventListener("resize", resizeCanvas);
 
 		fLen = 320; //represents the distance from the viewer to z=0 depth.
 
@@ -113,7 +113,16 @@ function canvasApp() {
 		turnSpeed = 2 * Math.PI / 1200; //the sphere will rotate at this speed (one complete rotation every 1600 frames).
 		turnAngle = 0; //initial angle
 
-		timer = setInterval(onTimer, 10 / 24);
+		timer = setInterval(onTimer, 1000 / 60);
+	}
+
+	function resizeCanvas() {
+		displayWidth = Math.max(320, theCanvas.clientWidth || theCanvas.width);
+		displayHeight = Math.max(260, theCanvas.clientHeight || theCanvas.height);
+		theCanvas.width = displayWidth;
+		theCanvas.height = displayHeight;
+		projCenterX = displayWidth / 2;
+		projCenterY = displayHeight / 2;
 	}
 
 	function onTimer() {
@@ -157,8 +166,7 @@ function canvasApp() {
 		cosAngle = Math.cos(turnAngle);
 
 		//background fill
-		context.fillStyle = "#000000";
-		context.fillRect(0, 0, displayWidth, displayHeight);
+		context.clearRect(0, 0, displayWidth, displayHeight);
 
 		//update and draw particles
 		p = particleList.first;
@@ -324,29 +332,29 @@ function canvasApp() {
 	}
 }
 
-
-$(function () {
-	$("#slider-range").slider({
-		range: false,
-		min: 20,
-		max: 500,
-		value: 280,
-		slide: function (event, ui) {
-			console.log(ui.value);
-			sphereRad = ui.value;
-		}
+if (window.jQuery && window.jQuery.fn && window.jQuery.fn.slider) {
+	$(function () {
+		$("#slider-range").slider({
+			range: false,
+			min: 20,
+			max: 500,
+			value: 280,
+			slide: function (event, ui) {
+				sphereRad = ui.value;
+			}
+		});
 	});
-});
 
-$(function () {
-	$("#slider-test").slider({
-		range: false,
-		min: 1.0,
-		max: 2.0,
-		value: 1,
-		step: 0.01,
-		slide: function (event, ui) {
-			radius_sp = ui.value;
-		}
+	$(function () {
+		$("#slider-test").slider({
+			range: false,
+			min: 1.0,
+			max: 2.0,
+			value: 1,
+			step: 0.01,
+			slide: function (event, ui) {
+				radius_sp = ui.value;
+			}
+		});
 	});
-});
+}

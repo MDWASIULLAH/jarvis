@@ -4,78 +4,717 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jarvis</title>
+    <title>JARVIS | AI Command Center</title>
 
-    <!-- Bootsrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-
-
-    <!-- Particle js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"
-        type="text/javascript"></script>
-
-    <!-- Texllate -->
-    
-
-    <link rel="stylesheet" href="assets/vendore/texllate/animate.css">
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-
+    <script>
+        if (location.protocol !== 'file:') {
+            document.write('<script type="text/javascript" src="/eel.js"><\/script>');
+        }
+    </script>
 </head>
 
 <body>
-    <section id="Oval" class="mb-4">
+    <div id="MainContainer">
+        <aside id="Sidebar" class="panel">
+            <div class="sidebar-brand">
+                <button class="brand-glyph" type="button" aria-label="Toggle sidebar">
+                    <span class="jarvis-logo" aria-hidden="true"><span>J</span></span>
+                </button>
+                <button class="sidebar-toggle" type="button" aria-label="Toggle sidebar">
+                    <i class="fas fa-table-columns"></i>
+                </button>
+            </div>
 
-        <div class="row">
-            <div class="col-md-1"></div>
-            <div class="col-md-10">
-                <div class="d-flux justify-content-center align-items-center" style="height: 80vh;">
+            <nav class="nav-menu" aria-label="Jarvis workspace">
+                <button class="nav-item active" type="button" data-module="Dashboard">
+                    <i class="fas fa-pen-to-square"></i>
+                    <span>New chat</span>
+                </button>
+                <button class="nav-item" type="button" data-command="search google latest AI news">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <span>Search web</span>
+                </button>
+                <button class="nav-item" type="button" data-module="Settings">
+                    <i class="fas fa-sliders"></i>
+                    <span>Settings</span>
+                </button>
+                <button class="nav-item" type="button" data-command="open terminal">
+                    <i class="fas fa-terminal"></i>
+                    <span>Terminal</span>
+                </button>
+            </nav>
 
-                    <canvas id="canvasOne" width="700" height="420" style="position: absolute;"></canvas>
+            <div class="sidebar-section">
+                <p>Tools</p>
+                <button class="nav-item compact" type="button" data-command="daily briefing">
+                    <i class="fas fa-newspaper"></i>
+                    <span>Daily briefing</span>
+                </button>
+                <button class="nav-item compact" type="button" data-command="write python code for a calculator">
+                    <i class="fas fa-code"></i>
+                    <span>Code writer</span>
+                </button>
+                <button class="nav-item compact" type="button" data-command="ask knowledge what can Jarvis do">
+                    <i class="fas fa-database"></i>
+                    <span>RAG memory</span>
+                </button>
+                <button class="nav-item compact" type="button" data-module="Security">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>Security</span>
+                </button>
+            </div>
 
-                    <div id="JarvisHood">
+            <div class="sidebar-section history-section">
+                <div class="section-heading">
+                    <p>History</p>
+                    <button id="ClearHistoryBtn" class="section-action" type="button" title="Clear history" aria-label="Clear history">
+                        <i class="fas fa-trash-can"></i>
+                    </button>
+                </div>
+                <div id="HistoryList" class="history-list" aria-label="Chat history"></div>
+            </div>
 
-                        <div class="square">
-                            <span class="circle"></span>
-                            <span class="circle"></span>
-                            <span class="circle"></span>
+            <button class="nav-item shutdown-item" type="button" data-command="shutdown">
+                <i class="fas fa-power-off"></i>
+                <span>Shutdown</span>
+            </button>
+
+            <button id="AccountButton" class="account-block" type="button" aria-haspopup="menu" aria-expanded="false">
+                <div class="account-avatar">JD</div>
+                <div>
+                    <strong>Jarvis Desktop</strong>
+                    <span>High security</span>
+                </div>
+            </button>
+        </aside>
+
+        <main id="CenterStage" class="panel">
+            <header class="stage-topline">
+                <button id="MobileSidebarBtn" class="mobile-sidebar-open" type="button" aria-label="Open sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="model-picker">
+                    <h1>Jarvis</h1>
+                    <span id="CurrentModelName" class="model-name">JS 1</span>
+                    <button id="ModelPickerBtn" type="button" aria-label="Open model menu" aria-haspopup="menu" aria-expanded="false">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="mode-stack">
+                    <span id="BackendBadge" class="mini-badge">Safe Mode</span>
+                    <span id="VoiceBadge" class="mini-badge success">Voice Standby</span>
+                    <button id="TopTrainBtn" class="top-action train-action" type="button" data-command="train model" title="Train Jarvis skills, router, and local memory">
+                        <i class="fas fa-rotate"></i>
+                        <span>Train</span>
+                    </button>
+                </div>
+            </header>
+
+            <section id="ConnectionPanel" class="connection-panel hidden" aria-live="polite">
+                <div class="connection-icon">
+                    <i class="fas fa-plug-circle-xmark"></i>
+                </div>
+                <div>
+                    <strong id="ConnectionTitle">Local Core offline</strong>
+                    <p id="ConnectionDetails">Backend URL: http://127.0.0.1:8765 · Page mode: browser safe mode · Restart: run START_JARVIS.bat, then open http://127.0.0.1:8765/index.html.</p>
+                </div>
+                <a class="connection-link" href="http://127.0.0.1:8765/index.html" target="_blank" rel="noreferrer">Open Core</a>
+            </section>
+
+            <section id="OrbStage" class="dashboard-view welcome-panel" aria-label="Jarvis welcome">
+                <canvas id="canvasOne" width="720" height="460" aria-hidden="true"></canvas>
+                <div id="JarvisHood" aria-hidden="true">
+                    <div class="square">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <div class="welcome-copy">
+                    <div class="welcome-mark" aria-hidden="true">
+                        <span class="jarvis-logo hero"><span>J</span></span>
+                    </div>
+                    <h2 id="ModeTitle">How can I help?</h2>
+                    <p id="LiveTranscript">Ask me to open apps, read links, write code, draft email, train memory, or run a terminal command with approval.</p>
+                </div>
+            </section>
+
+            <div class="quick-actions dashboard-view" aria-label="Quick actions">
+                <button class="quick-chip" type="button" data-command="open notepad">
+                    <i class="fas fa-note-sticky"></i>
+                    <span>Open Notepad</span>
+                </button>
+                <button class="quick-chip" type="button" data-command="open calculator">
+                    <i class="fas fa-calculator"></i>
+                    <span>Calculator</span>
+                </button>
+                <button class="quick-chip" type="button" data-command="open youtube shorts and start scrolling">
+                    <i class="fab fa-youtube"></i>
+                    <span>Shorts auto-scroll</span>
+                </button>
+                <button class="quick-chip" type="button" data-command="daily briefing">
+                    <i class="fas fa-newspaper"></i>
+                    <span>Daily briefing</span>
+                </button>
+                <button class="quick-chip" type="button" data-command="write python code for a calculator">
+                    <i class="fas fa-code"></i>
+                    <span>Write code</span>
+                </button>
+                <button class="quick-chip" type="button" data-command="send email to test@example.com subject Update body I will send the update soon.">
+                    <i class="fas fa-envelope"></i>
+                    <span>Email draft</span>
+                </button>
+            </div>
+
+            <section class="conversation-shell dashboard-view" aria-label="Jarvis chat">
+                <div id="ConsoleLog" class="console-log" aria-live="polite">
+                </div>
+            </section>
+
+            <div id="ApprovalPanel" class="panel approval-panel hidden" aria-live="polite">
+                <div class="approval-heading">
+                    <i class="fas fa-lock"></i>
+                    <span>Permission Required</span>
+                </div>
+                <p id="ApprovalMessage"></p>
+                <dl id="ApprovalDetails"></dl>
+                <div class="approval-actions">
+                    <button id="ApproveBtn" class="approve-btn" type="button">
+                        <i class="fas fa-check"></i>
+                        <span>Approve</span>
+                    </button>
+                    <button id="CancelBtn" class="cancel-btn" type="button">
+                        <i class="fas fa-xmark"></i>
+                        <span>Cancel</span>
+                    </button>
+                </div>
+            </div>
+
+            <section id="SettingsView" class="module-view hidden" aria-label="Jarvis settings">
+                <div class="settings-shell">
+                    <aside class="settings-tabs" aria-label="Settings categories">
+                        <button class="settings-tab active" type="button" data-settings-tab="General">
+                            <i class="fas fa-gear"></i>
+                            <span>General</span>
+                        </button>
+                        <button class="settings-tab" type="button" data-settings-tab="Notifications">
+                            <i class="fas fa-bell"></i>
+                            <span>Notifications</span>
+                        </button>
+                        <button class="settings-tab" type="button" data-settings-tab="Personalization">
+                            <i class="fas fa-clock"></i>
+                            <span>Personalization</span>
+                        </button>
+                        <button class="settings-tab" type="button" data-settings-tab="Apps">
+                            <i class="fas fa-grip"></i>
+                            <span>Apps</span>
+                        </button>
+                        <button class="settings-tab" type="button" data-settings-tab="DataControls">
+                            <i class="fas fa-database"></i>
+                            <span>Data controls</span>
+                        </button>
+                        <button class="settings-tab" type="button" data-settings-tab="Security">
+                            <i class="fas fa-shield-halved"></i>
+                            <span>Security</span>
+                        </button>
+                        <button class="settings-tab" type="button" data-settings-tab="Account">
+                            <i class="fas fa-circle-user"></i>
+                            <span>Account</span>
+                        </button>
+                    </aside>
+
+                    <div class="settings-main">
+                        <div class="settings-modal-head">
+                            <button class="settings-close" type="button" data-module="Dashboard" aria-label="Close settings">
+                                <i class="fas fa-xmark"></i>
+                            </button>
+                            <h2 id="SettingsTitle">General</h2>
                         </div>
 
+                        <div class="settings-tab-panel" data-settings-panel="General">
+                <div class="settings-hero">
+                    <div>
+                        <p class="eyebrow">Settings</p>
+                        <h3>Security First Control</h3>
+                        <p class="hero-copy">Every sensitive action is routed through approval, local-origin checks, and high security defaults before Jarvis runs it.</p>
                     </div>
-
+                    <span class="security-lock"><i class="fas fa-lock"></i> HIGH</span>
                 </div>
-                <h5 class="text-light text text-center" >Ask me anything </h5>
 
+                <div class="request-flow-card">
+                    <div class="card-title">
+                        <i class="fas fa-route"></i>
+                        <span>Request Flow</span>
+                    </div>
+                    <div class="flow-lane" aria-label="Jarvis request flow">
+                        <span>User Input</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span>Router</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span>Web Search / Retrieval</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span>Context + Docs</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span>LLM</span>
+                        <i class="fas fa-arrow-right"></i>
+                        <span>Final Answer</span>
+                    </div>
+                </div>
 
+                <div class="settings-grid">
+                    <article class="settings-card security-overview-card">
+                        <div class="card-title">
+                            <i class="fas fa-shield-halved"></i>
+                            <span>Security</span>
+                        </div>
+                        <div class="security-score">
+                            <strong>HIGH</strong>
+                            <span>Approval-first protection</span>
+                        </div>
+                        <label class="switch-row">
+                            <span>Email approval</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                        <label class="switch-row">
+                            <span>Share approval</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                        <label class="switch-row">
+                            <span>Shutdown approval</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                        <label class="switch-row">
+                            <span>Local origin lock</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                    </article>
+
+                    <article class="settings-card brain-overview-card">
+                        <div class="card-title">
+                            <i class="fas fa-brain"></i>
+                            <span>Brain</span>
+                        </div>
+                        <div class="brain-stack">
+                            <span>Typo fix</span>
+                            <span>Local templates</span>
+                            <span>RAG memory</span>
+                        </div>
+                        <label class="switch-row">
+                            <span>Default local model</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                        <label class="switch-row">
+                            <span>Typo correction</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                        <label class="switch-row">
+                            <span>Learning aliases</span>
+                            <input type="checkbox" checked disabled>
+                        </label>
+                        <div class="mode-selector" role="group" aria-label="Jarvis work mode">
+                            <button class="mode-btn active" type="button" data-mode="simple">Simple</button>
+                            <button class="mode-btn" type="button" data-mode="agent">Agent</button>
+                            <button class="mode-btn" type="button" data-mode="full_access">Full Access</button>
+                        </div>
+                        <button id="BrainTestBtn" class="settings-action" type="button">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            <span>Test Brain</span>
+                        </button>
+                        <button class="settings-action ghost" type="button" data-command="write python code for a calculator">
+                            <i class="fas fa-code"></i>
+                            <span>Code Test</span>
+                        </button>
+                    </article>
+
+                    <article class="settings-card api-card">
+                        <div class="card-title">
+                            <i class="fas fa-key"></i>
+                            <span>Optional API</span>
+                        </div>
+                        <label class="switch-row">
+                            <span>Use custom API</span>
+                            <input id="ApiEnabled" type="checkbox">
+                        </label>
+                        <input id="ApiKeyInput" class="settings-input" type="password" placeholder="API key">
+                        <input id="ApiEndpointInput" class="settings-input" type="url" placeholder="API endpoint">
+                        <input id="ApiModelInput" class="settings-input" type="text" placeholder="Model">
+                        <input id="SearxngUrlInput" class="settings-input" type="url" placeholder="Self-hosted SearXNG URL (optional)">
+                        <input id="OllamaModelInput" class="settings-input" type="text" placeholder="Local Ollama model">
+                        <div class="settings-actions">
+                            <button id="SaveApiBtn" class="settings-action" type="button">
+                                <i class="fas fa-floppy-disk"></i>
+                                <span>Save</span>
+                            </button>
+                            <button id="ClearApiBtn" class="settings-action ghost" type="button">
+                                <i class="fas fa-trash"></i>
+                                <span>Clear</span>
+                            </button>
+                        </div>
+                        <p id="ApiStatus" class="settings-status">Default local model active.</p>
+                    </article>
+
+                    <article class="settings-card">
+                        <div class="card-title">
+                            <i class="fas fa-newspaper"></i>
+                            <span>Daily Briefing</span>
+                        </div>
+                        <label class="switch-row">
+                            <span>Important news</span>
+                            <input id="DailyBriefingToggle" type="checkbox" checked>
+                        </label>
+                        <input id="WhatsappNumberInput" class="settings-input" type="tel" placeholder="WhatsApp number with country code">
+                        <button id="BriefingBtn" class="settings-action" type="button">
+                            <i class="fas fa-bolt"></i>
+                            <span>Get Briefing</span>
+                        </button>
+                        <button id="ShareBriefingBtn" class="settings-action ghost" type="button">
+                            <i class="fab fa-whatsapp"></i>
+                            <span>Share WhatsApp</span>
+                        </button>
+                    </article>
+
+                    <article class="settings-card training-card">
+                        <div class="card-title">
+                            <i class="fas fa-database"></i>
+                            <span>Training / RAG</span>
+                        </div>
+                        <button id="TrainModelBtn" class="settings-action" type="button">
+                            <i class="fas fa-rotate"></i>
+                            <span>Train Model</span>
+                        </button>
+                        <input id="KnowledgeLinkInput" class="settings-input" type="url" placeholder="Link to learn from">
+                        <button id="AddKnowledgeLinkBtn" class="settings-action ghost" type="button">
+                            <i class="fas fa-link"></i>
+                            <span>Add Link</span>
+                        </button>
+                        <textarea id="KnowledgeTextInput" class="settings-input settings-textarea" placeholder="Paste text Jarvis should learn"></textarea>
+                        <button id="AddKnowledgeTextBtn" class="settings-action ghost" type="button">
+                            <i class="fas fa-book-medical"></i>
+                            <span>Add Text</span>
+                        </button>
+                        <input id="DatasetInput" class="settings-input" type="text" placeholder="Dataset path, URL, or Kaggle slug">
+                        <button id="ImportDatasetBtn" class="settings-action ghost" type="button">
+                            <i class="fas fa-table"></i>
+                            <span>Import Dataset</span>
+                        </button>
+                        <input id="KnowledgeAskInput" class="settings-input" type="text" placeholder="Ask saved knowledge">
+                        <button id="AskKnowledgeBtn" class="settings-action ghost" type="button">
+                            <i class="fas fa-magnifying-glass"></i>
+                            <span>Ask Knowledge</span>
+                        </button>
+                        <p id="TrainingStatus" class="settings-status">Local brain ready. API key is optional.</p>
+                    </article>
+                </div>
+                        </div>
+
+                        <div class="settings-tab-panel hidden" data-settings-panel="Notifications">
+                            <article class="settings-card wide-card">
+                                <div class="card-title">
+                                    <i class="fas fa-bell"></i>
+                                    <span>Notifications</span>
+                                </div>
+                                <label class="switch-row">
+                                    <span>Desktop notifications</span>
+                                    <input type="checkbox" checked>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Voice response alerts</span>
+                                    <input type="checkbox" checked>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Daily briefing reminder</span>
+                                    <input type="checkbox" checked>
+                                </label>
+                            </article>
+                        </div>
+
+                        <div class="settings-tab-panel hidden" data-settings-panel="Personalization">
+                            <article class="settings-card wide-card">
+                                <div class="card-title">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Personalization</span>
+                                </div>
+                                <label class="switch-row">
+                                    <span>Remember aliases and spelling fixes</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Use local RAG memory</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Show quick tools on new chat</span>
+                                    <input type="checkbox" checked>
+                                </label>
+                            </article>
+                        </div>
+
+                        <div class="settings-tab-panel hidden" data-settings-panel="Apps">
+                            <article class="settings-card wide-card">
+                                <div class="card-title">
+                                    <i class="fas fa-grip"></i>
+                                    <span>Apps</span>
+                                </div>
+                                <label class="switch-row">
+                                    <span>Windows app control</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                                <label class="switch-row">
+                                    <span>WhatsApp share drafts</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Link and Wikipedia reading</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                            </article>
+                        </div>
+
+                        <div class="settings-tab-panel hidden" data-settings-panel="DataControls">
+                            <article class="settings-card wide-card">
+                                <div class="card-title">
+                                    <i class="fas fa-database"></i>
+                                    <span>Data controls</span>
+                                </div>
+                                <label class="switch-row">
+                                    <span>Local training files</span>
+                                    <strong>jarvis_data/brain</strong>
+                                </label>
+                                <label class="switch-row">
+                                    <span>API key optional</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                                <button class="settings-action ghost" type="button" data-command="train model">
+                                    <i class="fas fa-rotate"></i>
+                                    <span>Retrain local brain</span>
+                                </button>
+                            </article>
+                        </div>
+
+                        <div class="settings-tab-panel hidden" data-settings-panel="Security">
+                            <article class="settings-card wide-card">
+                                <div class="card-title">
+                                    <i class="fas fa-shield-halved"></i>
+                                    <span>Security</span>
+                                </div>
+                                <div class="secure-account-card">
+                                    <i class="fas fa-lock"></i>
+                                    <div>
+                                        <strong>Secure your Jarvis</strong>
+                                        <p>High security stays enabled. Sending, sharing, shutdown, terminal commands, and other sensitive actions ask permission first.</p>
+                                    </div>
+                                </div>
+                                <label class="switch-row">
+                                    <span>Ask before terminal run</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Ask before email or WhatsApp</span>
+                                    <input type="checkbox" checked disabled>
+                                </label>
+                            </article>
+                        </div>
+
+                        <div class="settings-tab-panel hidden" data-settings-panel="Account">
+                            <article class="settings-card wide-card">
+                                <div class="card-title">
+                                    <i class="fas fa-circle-user"></i>
+                                    <span>Account</span>
+                                </div>
+                                <div class="account-settings-row">
+                                    <div class="account-avatar">JD</div>
+                                    <div>
+                                        <strong>Jarvis Desktop</strong>
+                                        <span>Local-first assistant</span>
+                                    </div>
+                                </div>
+                                <label class="switch-row">
+                                    <span>Profile name</span>
+                                    <strong>Jarvis Desktop</strong>
+                                </label>
+                                <label class="switch-row">
+                                    <span>Current mode</span>
+                                    <strong>High security</strong>
+                                </label>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="TerminalView" class="module-view hidden" aria-label="Jarvis terminal">
+                <div class="settings-hero">
+                    <div>
+                        <p class="eyebrow">Local Terminal</p>
+                        <h3>Permission-Gated Command Runner</h3>
+                    </div>
+                    <span class="security-lock"><i class="fas fa-shield-halved"></i> ASK FIRST</span>
+                </div>
+                <div class="terminal-panel">
+                    <div id="TerminalOutput" class="terminal-output">Terminal ready. Commands run inside the Jarvis project folder after approval.</div>
+                    <div class="terminal-input-row">
+                        <input id="TerminalInput" class="settings-input terminal-input" type="text" placeholder="Example: dir">
+                        <button id="TerminalRunBtn" class="settings-action" type="button">
+                            <i class="fas fa-play"></i>
+                            <span>Run</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="StatusHUD" aria-label="Jarvis status">
+                <div class="panel hud-panel">
+                    <div class="hud-title">System</div>
+                    <div class="stat-row">
+                        <span>CPU Load</span>
+                        <strong id="CpuValue">12%</strong>
+                    </div>
+                    <div class="stat-row">
+                        <span>Voice Link</span>
+                        <strong id="VoiceValue">READY</strong>
+                    </div>
+                    <div class="stat-row">
+                        <span>AI Core</span>
+                        <strong id="AiValue">AUTO</strong>
+                    </div>
+                </div>
+                <div id="SettingsPanel" class="panel settings-panel">
+                    <div class="hud-title">Security</div>
+                    <div class="setting-row locked">
+                        <span>Security</span>
+                        <strong>HIGH</strong>
+                    </div>
+                    <div class="setting-row">
+                        <span>Email Permission</span>
+                        <strong>ON</strong>
+                    </div>
+                    <div class="setting-row">
+                        <span>Danger Actions</span>
+                        <strong>ASK</strong>
+                    </div>
+                    <div class="setting-row">
+                        <span>Local Model</span>
+                        <strong>ON</strong>
+                    </div>
+                </div>
+            </section>
+
+            <footer id="CommandArea" class="panel">
+                <div class="input-container">
+                    <button id="PlusMenuBtn" class="composer-tool" type="button" aria-label="Open tools menu" aria-haspopup="menu" aria-expanded="false">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <input id="CommandInput" type="text" class="jarvis-input" autocomplete="off" spellcheck="true" placeholder="Ask anything">
+                    <button id="MicBtn" class="icon-btn mic-btn" type="button" aria-label="Start voice input">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="StopVoiceBtn" class="icon-btn stop-voice-btn" type="button" aria-label="Stop voice">
+                        <i class="fas fa-volume-xmark"></i>
+                    </button>
+                    <button id="SendBtn" class="icon-btn send-btn" type="button" aria-label="Send command">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                </div>
+                <p class="composer-note">Jarvis can make mistakes. Review before sending, sharing, or running commands.</p>
+            </footer>
+        </main>
+
+        <div id="AccountMenu" class="floating-menu account-menu hidden" role="menu">
+            <div class="menu-profile">
+                <div class="account-avatar">JD</div>
+                <div>
+                    <strong>Jarvis Desktop</strong>
+                    <span>Go</span>
+                </div>
+                <i class="fas fa-chevron-right"></i>
             </div>
-            <div class="col-md-1"></div>
-
-
-
+            <button type="button" role="menuitem" data-settings-shortcut="Personalization">
+                <i class="fas fa-clock"></i>
+                <span>Personalization</span>
+            </button>
+            <button type="button" role="menuitem" data-settings-shortcut="Account">
+                <i class="fas fa-circle-user"></i>
+                <span>Profile</span>
+            </button>
+            <button type="button" role="menuitem" data-settings-shortcut="General">
+                <i class="fas fa-gear"></i>
+                <span>Settings</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button type="button" role="menuitem" data-command="draft email to mdwasiullah445@gmail.com about Jarvis support problem">
+                <i class="fas fa-life-ring"></i>
+                <span>
+                    Help
+                    <small>mdwasiullah445@gmail.com</small>
+                </span>
+                <i class="fas fa-chevron-right trailing"></i>
+            </button>
+            <button type="button" role="menuitem" data-menu-message="Jarvis is local. Close the browser tab to log out of this session.">
+                <i class="fas fa-arrow-right-from-bracket"></i>
+                <span>Log out</span>
+            </button>
         </div>
 
-    </section>
+        <div id="ModelMenu" class="floating-menu model-menu hidden" role="menu">
+            <button class="selected" type="button" role="menuitem" data-model-name="JS 1">
+                <i class="fas fa-check"></i>
+                <span>JS 1</span>
+                <small>Default</small>
+            </button>
+            <button type="button" role="menuitem" data-model-name="JS 1 Code">
+                <i class="fas fa-code"></i>
+                <span>JS 1 Code</span>
+                <small>Coding</small>
+            </button>
+            <button type="button" role="menuitem" data-model-name="JS 1 Fast">
+                <i class="fas fa-bolt"></i>
+                <span>JS 1 Fast</span>
+                <small>Quick</small>
+            </button>
+        </div>
 
-    <!--Jquery  -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+        <div id="PlusMenu" class="floating-menu plus-menu hidden" role="menu">
+            <button type="button" role="menuitem" data-plus-action="plan">
+                <i class="fas fa-list-check"></i>
+                <span>Plan</span>
+            </button>
+            <button type="button" role="menuitem" data-plus-action="media">
+                <i class="fas fa-image"></i>
+                <span>Media</span>
+            </button>
+            <button type="button" role="menuitem" data-plus-action="mentions">
+                <i class="fas fa-at"></i>
+                <span>Mentions</span>
+            </button>
+            <button type="button" role="menuitem" data-plus-action="workflows">
+                <i class="fas fa-square-arrow-up-right"></i>
+                <span>Workflows</span>
+            </button>
+        </div>
 
-    <!-- Bootstrap -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-        crossorigin="anonymous"></script>
+        <div id="PreviewModal" class="preview-modal hidden" role="dialog" aria-modal="true" aria-label="Code preview">
+            <div class="preview-window">
+                <header class="preview-head">
+                    <strong>Preview</strong>
+                    <div>
+                        <button id="OpenPreviewBtn" type="button">Open full page</button>
+                        <button id="ClosePreviewBtn" type="button" aria-label="Close preview">
+                            <i class="fas fa-xmark"></i>
+                        </button>
+                    </div>
+                </header>
+                <iframe id="PreviewFrame" title="Generated website preview"></iframe>
+            </div>
+        </div>
+    </div>
 
-        <!-- Particle js -->
-        <script src="script.js"></script>
-
-    <!-- Texllate js -->
-    <script src="assets/vendore/texllate/jquery.fittext.js"></script>
-    <script src="assets/vendore/texllate/jquery.lettering.js"></script>
-    <script src="http://jschr.github.io/textillate/jquery.textillate.js"></script>
-
+    <script src="script.js"></script>
     <script src="main.js"></script>
-
-
 </body>
 
 </html>

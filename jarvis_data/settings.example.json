@@ -1,0 +1,17 @@
+{
+  "security_level": "HIGH",
+  "permission_email": true,
+  "permission_share": true,
+  "permission_danger": true,
+  "api_enabled": false,
+  "api_key": "",
+  "api_endpoint": "https://api.openai.com/v1/chat/completions",
+  "api_model": "gpt-4o-mini",
+  "searxng_url": "",
+  "daily_briefing": true,
+  "whatsapp_number": "",
+  "ollama_model": "qwen2.5-coder:7b",
+  "work_mode": "simple",
+  "voice_enabled": false,
+  "aliases": {}
+}
