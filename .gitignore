@@ -10,6 +10,8 @@ env/
 !frontend/env.example
 .vercel/
 node_modules/
+.next/
+frontend/.next/
 dist/
 build/
 *.log

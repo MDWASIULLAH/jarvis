@@ -23,7 +23,7 @@ import { TaskStream } from "@/components/task-stream";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { approveTask, createTask, taskSocketUrl, type TaskRecord } from "@/lib/api";
+import { approveTask, createTask, getTask, taskSocketUrl, type TaskRecord } from "@/lib/api";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -60,24 +60,35 @@ function JarvisWorkspace({
     try {
       const task = await createTask(prompt, userId, accessToken);
       setTasks((current) => [task, ...current]);
-      watchTask(task.id);
+      watchTask(task.id, task.status);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Jarvis backend is not reachable.");
+      setNotice(error instanceof Error ? error.message : "Jarvis could not complete the request.");
     }
   }
 
   async function handleApprove(taskId: string, approved: boolean) {
     try {
-      const task = await approveTask(taskId, approved, accessToken);
+      const currentTask = tasks.find((item) => item.id === taskId);
+      const task = await approveTask(taskId, approved, accessToken, currentTask);
       setTasks((current) => current.map((item) => (item.id === taskId ? task : item)));
-      if (approved) watchTask(taskId);
+      if (approved) watchTask(taskId, task.status);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Approval failed.");
     }
   }
 
-  function watchTask(taskId: string) {
-    const socket = new WebSocket(taskSocketUrl(taskId));
+  function watchTask(taskId: string, status?: TaskRecord["status"]) {
+    if (status === "completed" || status === "failed" || status === "cancelled" || status === "waiting_approval") {
+      return;
+    }
+
+    const socketUrl = taskSocketUrl(taskId);
+    if (!socketUrl) {
+      window.setTimeout(() => fetchTask(taskId), 650);
+      return;
+    }
+
+    const socket = new WebSocket(socketUrl);
     socket.onmessage = (event) => {
       const payload = JSON.parse(event.data);
       if (payload.type === "snapshot" && payload.task) {
@@ -91,11 +102,13 @@ function JarvisWorkspace({
   }
 
   async function fetchTask(taskId: string) {
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-    const response = await fetch(`${base.replace(/\/$/, "")}/api/tasks/${taskId}`);
-    if (!response.ok) return;
-    const task = (await response.json()) as TaskRecord;
-    setTasks((current) => current.map((item) => (item.id === taskId ? task : item)));
+    try {
+      const task = await getTask(taskId, accessToken);
+      setTasks((current) => current.map((item) => (item.id === taskId ? task : item)));
+      watchTask(taskId, task.status);
+    } catch {
+      return;
+    }
   }
 
   async function signOut() {
@@ -197,7 +210,7 @@ function JarvisWorkspace({
         ) : null}
 
         <section className="jarvis-scroll min-h-0 flex-1 overflow-y-auto">
-          <TaskStream tasks={tasks} onApprove={handleApprove} />
+          <TaskStream tasks={tasks} onApprove={handleApprove} onPrompt={submitPrompt} />
         </section>
 
         <TaskComposer onSubmit={submitPrompt} />

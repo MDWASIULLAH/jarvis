@@ -9,9 +9,10 @@ import type { TaskRecord } from "@/lib/api";
 type TaskStreamProps = {
   tasks: TaskRecord[];
   onApprove: (taskId: string, approved: boolean) => void;
+  onPrompt: (prompt: string) => void;
 };
 
-export function TaskStream({ tasks, onApprove }: TaskStreamProps) {
+export function TaskStream({ tasks, onApprove, onPrompt }: TaskStreamProps) {
   if (!tasks.length) {
     return (
       <div className="mx-auto grid max-w-4xl gap-6 px-4 py-12 text-center">
@@ -25,9 +26,13 @@ export function TaskStream({ tasks, onApprove }: TaskStreamProps) {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {["Search latest AI news", "Write a React dashboard", "Read a GitHub repo", "Create a deployment plan"].map((item) => (
-            <div key={item} className="rounded-2xl border border-[#dfe2e7] bg-white p-4 text-left font-semibold">
+            <button
+              key={item}
+              onClick={() => onPrompt(item)}
+              className="rounded-2xl border border-[#dfe2e7] bg-white p-4 text-left font-semibold transition hover:border-[#0f9f7a] hover:bg-[#f6fffb]"
+            >
               {item}
-            </div>
+            </button>
           ))}
         </div>
       </div>
