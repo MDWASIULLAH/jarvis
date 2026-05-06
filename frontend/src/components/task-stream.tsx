@@ -15,11 +15,11 @@ type TaskStreamProps = {
 export function TaskStream({ tasks, onApprove, onPrompt }: TaskStreamProps) {
   if (!tasks.length) {
     return (
-      <div className="mx-auto grid max-w-4xl gap-6 px-4 py-12 text-center">
-        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-[#07080a] text-4xl font-black text-white">J</div>
+      <div className="mx-auto grid max-w-4xl gap-5 px-4 py-10 text-center">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#07080a] text-3xl font-black text-white">J</div>
         <div>
-          <h1 className="text-4xl font-black tracking-normal sm:text-5xl">How can I help?</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-[#5c6067]">
+          <h1 className="text-3xl font-black tracking-normal sm:text-4xl">How can I help?</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-[#5c6067]">
             Ask naturally. Jarvis can answer questions, search live information, write code, create browser sessions,
             draft messages, and plan deployments with approval.
           </p>
