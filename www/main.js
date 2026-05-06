@@ -80,6 +80,7 @@
     const authSubmitBtn = document.getElementById('AuthSubmitBtn');
     const authStatus = document.getElementById('AuthStatus');
     const googleSignIn = document.getElementById('GoogleSignIn');
+    const googleFallbackBtn = document.getElementById('GoogleFallbackBtn');
     const googleAuthHint = document.getElementById('GoogleAuthHint');
     const logoutBtn = document.getElementById('LogoutBtn');
     const connectionLink = document.querySelector('.connection-link');
@@ -428,6 +429,17 @@
         return fallback;
     }
 
+    function showGoogleSetupMessage() {
+        const message = [
+            'Google sign-in button is ready, but a Google OAuth Client ID is not configured yet.',
+            'Add GOOGLE_CLIENT_ID in Vercel or set it before starting Local Core, then reload Jarvis.',
+        ].join(' ');
+        setAuthStatus(message, 'error');
+        if (googleAuthHint) {
+            googleAuthHint.textContent = message;
+        }
+    }
+
     async function handleGoogleCredential(response) {
         if (!response?.credential) {
             setAuthStatus('Google did not return a sign-in credential.', 'error');
@@ -451,14 +463,18 @@
 
     async function initGoogleSignIn() {
         if (!googleSignIn || !googleAuthHint) return;
+        if (googleFallbackBtn) {
+            googleFallbackBtn.hidden = false;
+        }
         const config = await fetchAuthConfig();
         const clientId = normalize(config.google_client_id || '');
         if (!clientId) {
-            googleAuthHint.textContent = 'Google sign-in is ready after GOOGLE_CLIENT_ID is added in Vercel environment variables.';
+            googleAuthHint.textContent = 'Google sign-in appears here. Add GOOGLE_CLIENT_ID to activate the real Google popup.';
             return;
         }
         try {
             await loadGoogleScript();
+            googleSignIn.replaceChildren();
             window.google.accounts.id.initialize({
                 client_id: clientId,
                 callback: handleGoogleCredential,
@@ -473,6 +489,10 @@
             });
             googleAuthHint.textContent = 'Google sign-in is secure and verified through the backend.';
         } catch (error) {
+            if (!googleSignIn.contains(googleFallbackBtn) && googleFallbackBtn) {
+                googleSignIn.replaceChildren(googleFallbackBtn);
+                googleFallbackBtn.hidden = false;
+            }
             googleAuthHint.textContent = 'Google sign-in could not load. Check the domain and Google OAuth setup.';
         }
     }
@@ -511,6 +531,9 @@
                 saveAuthProfile({ name, email, provider: 'email' });
                 setAuthStatus(authMode === 'signup' ? 'Account created.' : 'Logged in.', 'success');
             });
+        }
+        if (googleFallbackBtn) {
+            googleFallbackBtn.addEventListener('click', showGoogleSetupMessage);
         }
         initGoogleSignIn();
     }

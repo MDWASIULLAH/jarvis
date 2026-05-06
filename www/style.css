@@ -37,6 +37,12 @@ body {
     background: var(--bg);
 }
 
+body:not(.authenticated) {
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 body:not(.authenticated) #MainContainer {
     display: none;
 }
@@ -69,7 +75,8 @@ body.sidebar-collapsed #MainContainer {
 
 .auth-screen {
     display: grid;
-    place-items: center;
+    align-items: center;
+    justify-items: center;
     min-height: 100dvh;
     padding: 24px;
     background:
@@ -224,7 +231,33 @@ body.authenticated .auth-screen {
 }
 
 .google-signin {
-    min-height: 42px;
+    display: grid;
+    min-height: 44px;
+}
+
+.google-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: #202124;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 800;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.google-fallback:hover {
+    background: #f8fafd;
+}
+
+.google-fallback i {
+    color: #4285f4;
 }
 
 .auth-hint,
@@ -1976,6 +2009,52 @@ body.sidebar-collapsed .account-block {
 @media (max-width: 720px) {
     body {
         overflow: hidden;
+    }
+
+    body:not(.authenticated) {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .auth-screen {
+        align-items: flex-start;
+        min-height: 100svh;
+        padding: 14px;
+    }
+
+    .auth-card {
+        width: 100%;
+        padding: 18px;
+        border-radius: 20px;
+    }
+
+    .auth-brand {
+        margin-bottom: 16px;
+    }
+
+    .auth-card h1 {
+        font-size: 1.72rem;
+    }
+
+    .auth-copy {
+        margin-bottom: 16px;
+        font-size: 0.94rem;
+    }
+
+    .auth-tabs button,
+    .auth-form input,
+    .auth-submit,
+    .google-fallback {
+        min-height: 42px;
+    }
+
+    .auth-form {
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .auth-divider {
+        margin: 14px 0 10px;
     }
 
     #MainContainer {

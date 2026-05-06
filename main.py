@@ -198,6 +198,7 @@ DEFAULT_SETTINGS = {
     "daily_briefing": True,
     "whatsapp_number": "",
     "ollama_model": "qwen2.5-coder:7b",
+    "google_client_id": "",
     "work_mode": "simple",
     "voice_enabled": True,
     "aliases": {},
@@ -556,6 +557,11 @@ def _response(message: str, kind: str = "response", speak_result: bool = False, 
     if speak_result:
         speak(message)
     return _json(payload)
+
+
+def _google_client_id() -> str:
+    settings = _load_settings()
+    return _squash(os.getenv("GOOGLE_CLIENT_ID", "") or settings.get("google_client_id", ""))
 
 
 def _route_command(command: str) -> dict:
@@ -3457,6 +3463,34 @@ def _origin_allowed(origin: str | None) -> bool:
     return parsed.scheme in {"http", "https"} and parsed.hostname in {"127.0.0.1", "localhost", "::1"}
 
 
+def _verify_google_id_token(credential: str) -> tuple[dict | None, str]:
+    client_id = _google_client_id()
+    if not client_id:
+        return None, "GOOGLE_CLIENT_ID is not configured."
+    if not credential:
+        return None, "Missing Google credential."
+
+    query = urllib.parse.urlencode({"id_token": credential})
+    try:
+        request = urllib.request.Request(f"https://oauth2.googleapis.com/tokeninfo?{query}")
+        with urllib.request.urlopen(request, timeout=8) as response:
+            profile = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return None, "Google credential could not be verified."
+
+    if profile.get("aud") != client_id:
+        return None, "Google credential does not match this Jarvis app."
+    if str(profile.get("email_verified", "")).lower() not in {"true", "1"}:
+        return None, "Google email is not verified."
+
+    return {
+        "name": profile.get("name") or profile.get("email") or "Jarvis User",
+        "email": profile.get("email", ""),
+        "picture": profile.get("picture", ""),
+        "provider": "google",
+    }, ""
+
+
 def _get_pywhatkit():
     global pywhatkit, PYWHATKIT_UNAVAILABLE
 
@@ -3565,6 +3599,16 @@ class JarvisBridgeHandler(BaseHTTPRequestHandler):
                 return
             self._send_json(200, {"ok": True, "settings": _public_settings()})
             return
+        if path.rstrip("/") == "/api/config":
+            self._send_json(
+                200,
+                {
+                    "mode": "jarvis-local-core",
+                    "google_client_id": _google_client_id(),
+                    "desktop_connector": "connected",
+                },
+            )
+            return
         if path == "/" or path == "/eel.js" or (BASE_DIR / "www" / path.lstrip("/")).resolve().is_relative_to((BASE_DIR / "www").resolve()):
             self._send_static(self.path)
             return
@@ -3572,7 +3616,7 @@ class JarvisBridgeHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         route = self.path.rstrip("/")
-        if route not in {"/command", "/settings"}:
+        if route not in {"/command", "/settings", "/api/auth"}:
             self._send_json(404, {"ok": False, "message": "Not found."})
             return
 
@@ -3580,14 +3624,22 @@ class JarvisBridgeHandler(BaseHTTPRequestHandler):
             self._send_json(403, {"ok": False, "message": "Origin blocked."})
             return
 
-        if self.headers.get("X-Jarvis-Client") != "command-center":
-            self._send_json(403, {"ok": False, "message": "Client blocked."})
-            return
-
         try:
             length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(min(length, 8192)).decode("utf-8")
             data = json.loads(body or "{}")
+
+            if route == "/api/auth":
+                user, error = _verify_google_id_token(_squash(data.get("credential", "")))
+                if error:
+                    self._send_json(401 if _google_client_id() else 503, {"ok": False, "error": error})
+                    return
+                self._send_json(200, {"ok": True, "user": user})
+                return
+
+            if self.headers.get("X-Jarvis-Client") != "command-center":
+                self._send_json(403, {"ok": False, "message": "Client blocked."})
+                return
 
             if route == "/settings":
                 updates = data.get("settings", data)

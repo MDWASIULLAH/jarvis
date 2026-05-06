@@ -50,7 +50,12 @@
             </form>
 
             <div class="auth-divider"><span>or</span></div>
-            <div id="GoogleSignIn" class="google-signin"></div>
+            <div id="GoogleSignIn" class="google-signin">
+                <button id="GoogleFallbackBtn" class="google-fallback" type="button">
+                    <i class="fab fa-google"></i>
+                    <span>Continue with Google</span>
+                </button>
+            </div>
             <p id="GoogleAuthHint" class="auth-hint">Checking Google sign-in...</p>
             <p id="AuthStatus" class="auth-status" aria-live="polite"></p>
         </div>
