@@ -2,6 +2,20 @@
 
 Jarvis is a local-first AI command center with a Vercel-ready web UI.
 
+It is built to behave like an approval-first autonomous assistant: Jarvis understands a natural-language task, plans the safest execution path, asks permission in the web UI, then continues the workflow through the Local Core connector.
+
+## Features
+
+- Natural-language task planning
+- Approval cards for actionable tasks
+- Local desktop app opening through the Local Core connector
+- Email and sharing drafts with permission
+- Free DDGS/SearXNG-ready search stack
+- Local RAG memory and skill packs
+- Coding assistant defaults for Ollama + Qwen2.5-Coder
+- Vercel-ready web UI and Python planner API
+- Mobile responsive sidebar and chat interface
+
 ## Architecture
 
 ```
@@ -27,6 +41,19 @@ Then open:
 http://127.0.0.1:8765/index.html
 ```
 
+## Install Dependencies
+
+```bat
+pip install -r requirements.txt
+```
+
+Optional local coding model setup:
+
+```bat
+ollama pull qwen2.5-coder:7b
+ollama pull deepseek-r1:7b
+```
+
 ## Vercel
 
 This repo includes:
@@ -37,6 +64,14 @@ This repo includes:
 - `main.py` for the desktop Local Core connector
 
 On Vercel, desktop execution is delegated back to the Local Core connector after user approval in the UI.
+
+Deploy with:
+
+```bat
+vercel deploy
+```
+
+Or connect this GitHub repository to Vercel for automatic deployments.
 
 ## Free Search Stack
 
@@ -66,3 +101,7 @@ Jarvis keeps high-security defaults:
 - backend-only key handling
 - no frontend API keys
 - confirmation before email, sharing, terminal, shutdown, desktop automation, and agent workflows
+
+## License
+
+This project is released under the MIT License. See `LICENSE`.
