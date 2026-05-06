@@ -1,35 +1,75 @@
 # Jarvis
 
-Jarvis is a local-first AI command center with a Vercel-ready web UI.
+Jarvis is being migrated into a cloud-first AI agent system with a Vercel Next.js frontend, FastAPI backend, Supabase auth, and scalable browser automation workers.
 
-It is built to behave like an approval-first autonomous assistant: Jarvis understands a natural-language task, plans the safest execution path, asks permission in the web UI, then continues the workflow through the Local Core connector.
+The legacy Windows Local Core still exists for optional hybrid desktop control, but the main cloud product no longer depends on manually running `START_JARVIS.bat`.
 
 ## Features
 
 - Natural-language task planning
 - Approval cards for actionable tasks
-- Local desktop app opening through the Local Core connector
+- Cloud browser automation architecture with Playwright workers
 - Email and sharing drafts with permission
 - Free DDGS/SearXNG-ready search stack
 - Local RAG memory and skill packs
 - Coding assistant defaults for Ollama + Qwen2.5-Coder
-- Vercel-ready web UI and Python planner API
-- Cloud web mode that does not require localhost for web-safe tasks
-- Login/sign-up UI with Google Identity Services support
+- Next.js frontend for Vercel
+- FastAPI backend with REST and WebSocket routes
+- Login/sign-up UI with Supabase Google OAuth support
 - Mobile responsive sidebar and chat interface
 
 ## Architecture
 
 ```
-User Prompt
-  -> Intent Detection
-  -> Task Planning
-  -> Approval Request
-  -> Local Core / Web API Execution
+Vercel Next.js Frontend
+  -> FastAPI Backend
+  -> Jarvis Agent Planner
+  -> Approval Workflow
+  -> Async Workers
+  -> Playwright Cloud Browser Sessions
   -> Completion Report
 ```
 
-The Vercel app can host the UI and planning API. Desktop actions such as opening VS Code, running terminal commands, scrolling YouTube, editing local files, or sending messages from the laptop require the Local Core connector because Vercel cannot control a user's Windows desktop directly.
+The Vercel app hosts the web UI. The backend and workers run as Docker services on a container host. Desktop actions such as opening VS Code on a user's private laptop require the optional hybrid connector because Vercel cannot directly control a local Windows desktop.
+
+## Running Jarvis in Cloud Mode
+
+Cloud mode is the primary architecture.
+
+1. Copy environment values:
+
+```bat
+copy .env.example .env
+copy frontend\env.example frontend\.env.local
+```
+
+2. Start backend, worker, and Redis:
+
+```bat
+docker compose up --build
+```
+
+3. Start the frontend:
+
+```bat
+cd frontend
+npm install
+npm run dev
+```
+
+4. Open:
+
+```text
+http://localhost:3000
+```
+
+The frontend talks to the backend using:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+For production, deploy `frontend/` to Vercel and deploy `backend/` plus `workers/` to a Docker-capable host.
 
 ## Authentication
 
@@ -62,7 +102,9 @@ http://127.0.0.1:8765/index.html
 https://jarvisj1.vercel.app/index.html
 ```
 
-## Run Locally
+## Legacy Local Core
+
+The old Windows Local Core is now optional legacy/hybrid mode. Use it only when you need direct laptop control.
 
 ```bat
 START_JARVIS.bat
@@ -87,24 +129,40 @@ ollama pull qwen2.5-coder:7b
 ollama pull deepseek-r1:7b
 ```
 
-## Vercel
+## Vercel Frontend
 
 This repo includes:
 
-- `vercel.json` for static UI + Python API routing
-- `api/agent.py` for task planning
-- `www/` for the web interface
-- `main.py` for the desktop Local Core connector
+- `frontend/` for the Next.js app
+- `frontend/vercel.json` for frontend deployment
+- root `vercel.json` pointing Vercel to `frontend/package.json`
 
-On Vercel, desktop execution is delegated back to the Local Core connector after user approval in the UI.
+Recommended Vercel setting:
 
-Deploy with:
+```text
+Root Directory: frontend
+```
+
+Set `NEXT_PUBLIC_API_BASE_URL` to the deployed FastAPI backend URL.
+
+## Cloud Backend
+
+FastAPI routes:
+
+- `GET /health`
+- `POST /api/tasks`
+- `GET /api/tasks/{task_id}`
+- `POST /api/tasks/{task_id}/approve`
+- `POST /api/tasks/{task_id}/cancel`
+- `WS /ws/tasks/{task_id}`
+
+See `CLOUD_MIGRATION_GUIDE.md` for the full migration details.
+
+Legacy deployment command:
 
 ```bat
 vercel deploy
 ```
-
-Or connect this GitHub repository to Vercel for automatic deployments.
 
 ## Free Search Stack
 

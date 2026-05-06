@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    environment:
+      BACKEND_CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+      REDIS_URL: "redis://redis:6379/0"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+    env_file:
+      - .env
+    environment:
+      BACKEND_URL: "http://backend:8000"
+      REDIS_URL: "redis://redis:6379/0"
+    depends_on:
+      - backend
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
