@@ -19,6 +19,43 @@
 </head>
 
 <body>
+    <section id="AuthScreen" class="auth-screen" aria-label="Jarvis sign in">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <span class="jarvis-logo auth-logo" aria-hidden="true"><span>J</span></span>
+                <span class="auth-pill"><i class="fas fa-shield-halved"></i> Secure access</span>
+            </div>
+            <h1>Sign in to Jarvis</h1>
+            <p class="auth-copy">Use the web agent on Vercel, keep approvals inside Jarvis, and connect Local Core only when you want desktop control.</p>
+
+            <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+                <button id="AuthLoginTab" class="active" type="button" role="tab" aria-selected="true">Log in</button>
+                <button id="AuthSignupTab" type="button" role="tab" aria-selected="false">Sign up</button>
+            </div>
+
+            <form id="AuthForm" class="auth-form">
+                <label id="AuthNameWrap" class="hidden">
+                    <span>Full name</span>
+                    <input id="AuthNameInput" type="text" autocomplete="name" placeholder="Your name">
+                </label>
+                <label>
+                    <span>Email</span>
+                    <input id="AuthEmailInput" type="email" autocomplete="email" placeholder="you@example.com" required>
+                </label>
+                <label>
+                    <span>Password</span>
+                    <input id="AuthPasswordInput" type="password" autocomplete="current-password" placeholder="At least 6 characters" required>
+                </label>
+                <button id="AuthSubmitBtn" class="auth-submit" type="submit">Log in</button>
+            </form>
+
+            <div class="auth-divider"><span>or</span></div>
+            <div id="GoogleSignIn" class="google-signin"></div>
+            <p id="GoogleAuthHint" class="auth-hint">Checking Google sign-in...</p>
+            <p id="AuthStatus" class="auth-status" aria-live="polite"></p>
+        </div>
+    </section>
+
     <div id="MainContainer">
         <aside id="Sidebar" class="panel">
             <div class="sidebar-brand">
@@ -85,10 +122,10 @@
             </button>
 
             <button id="AccountButton" class="account-block" type="button" aria-haspopup="menu" aria-expanded="false">
-                <div class="account-avatar">JD</div>
+                <div id="SidebarAccountAvatar" class="account-avatar">JD</div>
                 <div>
-                    <strong>Jarvis Desktop</strong>
-                    <span>High security</span>
+                    <strong id="SidebarAccountName">Jarvis User</strong>
+                    <span id="SidebarAccountMode">High security</span>
                 </div>
             </button>
         </aside>
@@ -527,19 +564,19 @@
                                     <span>Account</span>
                                 </div>
                                 <div class="account-settings-row">
-                                    <div class="account-avatar">JD</div>
+                                    <div id="SettingsAccountAvatar" class="account-avatar">JD</div>
                                     <div>
-                                        <strong>Jarvis Desktop</strong>
-                                        <span>Local-first assistant</span>
+                                        <strong id="SettingsAccountName">Jarvis User</strong>
+                                        <span id="SettingsAccountEmail">Signed in</span>
                                     </div>
                                 </div>
                                 <label class="switch-row">
                                     <span>Profile name</span>
-                                    <strong>Jarvis Desktop</strong>
+                                    <strong id="SettingsProfileName">Jarvis User</strong>
                                 </label>
                                 <label class="switch-row">
                                     <span>Current mode</span>
-                                    <strong>High security</strong>
+                                    <strong id="SettingsAuthProvider">High security</strong>
                                 </label>
                             </article>
                         </div>
@@ -626,10 +663,10 @@
 
         <div id="AccountMenu" class="floating-menu account-menu hidden" role="menu">
             <div class="menu-profile">
-                <div class="account-avatar">JD</div>
+                <div id="MenuAccountAvatar" class="account-avatar">JD</div>
                 <div>
-                    <strong>Jarvis Desktop</strong>
-                    <span>Go</span>
+                    <strong id="MenuAccountName">Jarvis User</strong>
+                    <span id="MenuAccountEmail">Go</span>
                 </div>
                 <i class="fas fa-chevron-right"></i>
             </div>
@@ -654,7 +691,7 @@
                 </span>
                 <i class="fas fa-chevron-right trailing"></i>
             </button>
-            <button type="button" role="menuitem" data-menu-message="Jarvis is local. Close the browser tab to log out of this session.">
+            <button id="LogoutBtn" type="button" role="menuitem">
                 <i class="fas fa-arrow-right-from-bracket"></i>
                 <span>Log out</span>
             </button>

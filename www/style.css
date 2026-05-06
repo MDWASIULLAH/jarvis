@@ -37,6 +37,10 @@ body {
     background: var(--bg);
 }
 
+body:not(.authenticated) #MainContainer {
+    display: none;
+}
+
 button,
 input,
 textarea {
@@ -61,6 +65,181 @@ body.sidebar-collapsed #MainContainer {
 
 .panel {
     background: var(--surface);
+}
+
+.auth-screen {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    padding: 24px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(16, 163, 127, 0.13), transparent 34%),
+        linear-gradient(180deg, #ffffff 0%, #f7f7f8 100%);
+}
+
+body.authenticated .auth-screen {
+    display: none;
+}
+
+.auth-card {
+    width: min(440px, 100%);
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--shadow);
+}
+
+.auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.auth-logo {
+    width: 44px;
+    height: 44px;
+}
+
+.auth-logo span {
+    font-size: 1.1rem;
+}
+
+.auth-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 34px;
+    padding: 7px 11px;
+    border: 1px solid rgba(16, 163, 127, 0.24);
+    border-radius: var(--pill);
+    color: #0d745f;
+    background: rgba(16, 163, 127, 0.08);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.auth-card h1 {
+    margin: 0;
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.auth-copy,
+.auth-hint,
+.auth-status {
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.auth-copy {
+    margin: 10px 0 22px;
+}
+
+.auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 14px;
+    background: var(--surface-soft);
+}
+
+.auth-tabs button {
+    min-height: 40px;
+    border-radius: 10px;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.auth-tabs button.active {
+    color: var(--text);
+    background: var(--surface);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.06);
+}
+
+.auth-form {
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.auth-form label {
+    display: grid;
+    gap: 7px;
+    color: #303030;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.auth-form input {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+}
+
+.auth-form input:focus {
+    border-color: rgba(16, 163, 127, 0.7);
+    box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.12);
+}
+
+.auth-submit {
+    min-height: 46px;
+    border-radius: 12px;
+    color: #fff;
+    background: var(--accent);
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.auth-submit:hover {
+    background: var(--accent-strong);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 14px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.google-signin {
+    min-height: 42px;
+}
+
+.auth-hint,
+.auth-status {
+    min-height: 20px;
+    margin: 10px 0 0;
+    font-size: 0.82rem;
+}
+
+.auth-status.error {
+    color: var(--red);
+}
+
+.auth-status.success {
+    color: var(--accent-strong);
 }
 
 #Sidebar {
@@ -620,6 +799,12 @@ body.sidebar-collapsed .account-block {
     color: #332414;
 }
 
+.connection-panel.cloud {
+    border-color: rgba(16, 163, 127, 0.24);
+    background: #f0fbf7;
+    color: #123d32;
+}
+
 .connection-panel.hidden {
     display: none;
 }
@@ -634,6 +819,11 @@ body.sidebar-collapsed .account-block {
     background: rgba(180, 117, 15, 0.12);
 }
 
+.connection-panel.cloud .connection-icon {
+    color: var(--accent-strong);
+    background: rgba(16, 163, 127, 0.12);
+}
+
 .connection-panel strong {
     display: block;
     margin-bottom: 2px;
@@ -644,6 +834,10 @@ body.sidebar-collapsed .account-block {
     margin: 0;
     color: #725934;
     line-height: 1.4;
+}
+
+.connection-panel.cloud p {
+    color: #27604e;
 }
 
 .connection-link {

@@ -69,6 +69,36 @@
     const askKnowledgeBtn = document.getElementById('AskKnowledgeBtn');
     const trainingStatus = document.getElementById('TrainingStatus');
     const settingsTitle = document.getElementById('SettingsTitle');
+    const authScreen = document.getElementById('AuthScreen');
+    const authForm = document.getElementById('AuthForm');
+    const authLoginTab = document.getElementById('AuthLoginTab');
+    const authSignupTab = document.getElementById('AuthSignupTab');
+    const authNameWrap = document.getElementById('AuthNameWrap');
+    const authNameInput = document.getElementById('AuthNameInput');
+    const authEmailInput = document.getElementById('AuthEmailInput');
+    const authPasswordInput = document.getElementById('AuthPasswordInput');
+    const authSubmitBtn = document.getElementById('AuthSubmitBtn');
+    const authStatus = document.getElementById('AuthStatus');
+    const googleSignIn = document.getElementById('GoogleSignIn');
+    const googleAuthHint = document.getElementById('GoogleAuthHint');
+    const logoutBtn = document.getElementById('LogoutBtn');
+    const connectionLink = document.querySelector('.connection-link');
+    const accountNameNodes = [
+        document.getElementById('SidebarAccountName'),
+        document.getElementById('SettingsAccountName'),
+        document.getElementById('SettingsProfileName'),
+        document.getElementById('MenuAccountName'),
+    ].filter(Boolean);
+    const accountEmailNodes = [
+        document.getElementById('SettingsAccountEmail'),
+        document.getElementById('MenuAccountEmail'),
+    ].filter(Boolean);
+    const accountAvatarNodes = [
+        document.getElementById('SidebarAccountAvatar'),
+        document.getElementById('SettingsAccountAvatar'),
+        document.getElementById('MenuAccountAvatar'),
+    ].filter(Boolean);
+    const settingsAuthProvider = document.getElementById('SettingsAuthProvider');
 
     let recognitionInstance = null;
     let isListening = false;
@@ -85,16 +115,41 @@
     let lastCodeLanguage = '';
     let lastCodePrompt = '';
     let lastGeneratedMessage = '';
+    let authMode = 'login';
+    let currentUser = null;
 
     const bridgeUrl = 'http://127.0.0.1:8765';
-    const restartInstruction = 'Run START_JARVIS.bat, then open http://127.0.0.1:8765/index.html.';
+    const restartInstruction = 'Run START_JARVIS.bat to enable Windows app control through Local Core.';
     const historyStorageKey = 'jarvis.chat.history.v1';
+    const authStorageKey = 'jarvis.auth.profile.v1';
+    const googleScriptSrc = 'https://accounts.google.com/gsi/client';
     const starterHistory = [
         { title: 'What Jarvis can do', command: 'what can you do' },
         { title: 'YouTube Shorts control', command: 'open youtube shorts and start scrolling' },
         { title: 'Daily news briefing', command: 'daily briefing' },
         { title: 'Email drafting', command: 'write email about project delay' },
     ];
+
+    function isLocalHostPage() {
+        return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    }
+
+    function isCloudHosted() {
+        return location.protocol === 'https:' && !isLocalHostPage();
+    }
+
+    function pageModeLabel() {
+        if (location.protocol === 'file:') return 'file browser mode';
+        if (isCloudHosted()) return `${location.host} cloud web mode`;
+        return `${location.host} local browser mode`;
+    }
+
+    function initialsFromName(nameOrEmail) {
+        const value = normalize(nameOrEmail || 'Jarvis User');
+        const name = value.includes('@') ? value.split('@')[0] : value;
+        const parts = name.split(/[\s._-]+/).filter(Boolean);
+        return (parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'JU').slice(0, 2)).toUpperCase();
+    }
 
     const correctionMap = {
         opne: 'open',
@@ -149,9 +204,11 @@
     const websiteAliases = {
         google: 'https://www.google.com',
         youtube: 'https://www.youtube.com',
+        'youtube shorts': 'https://www.youtube.com/shorts',
         github: 'https://github.com',
         gmail: 'https://mail.google.com',
         chatgpt: 'https://chatgpt.com',
+        whatsapp: 'https://web.whatsapp.com',
         'whatsapp web': 'https://web.whatsapp.com',
     };
 
@@ -201,6 +258,261 @@
         corrected = corrected.replace(/\bopen\s+(my|the)\s+/i, 'open ');
         corrected = corrected.replace(/\bopen\s+(vs code|vscode|visual code)\b/i, 'open visual studio code');
         return corrected;
+    }
+
+    function readAuthProfile() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(authStorageKey) || 'null');
+            if (saved && saved.email) {
+                return saved;
+            }
+        } catch (error) {
+            localStorage.removeItem(authStorageKey);
+        }
+        return null;
+    }
+
+    function saveAuthProfile(profile) {
+        const safeProfile = {
+            name: normalize(profile.name || profile.email || 'Jarvis User'),
+            email: normalize(profile.email || ''),
+            provider: normalize(profile.provider || 'email'),
+            picture: profile.picture || '',
+            signedInAt: new Date().toISOString(),
+        };
+        localStorage.setItem(authStorageKey, JSON.stringify(safeProfile));
+        applyAuthProfile(safeProfile);
+        return safeProfile;
+    }
+
+    function setAuthStatus(message, tone = '') {
+        if (!authStatus) return;
+        authStatus.textContent = message || '';
+        authStatus.classList.toggle('error', tone === 'error');
+        authStatus.classList.toggle('success', tone === 'success');
+    }
+
+    function setAuthMode(nextMode) {
+        authMode = nextMode === 'signup' ? 'signup' : 'login';
+        if (authLoginTab) {
+            authLoginTab.classList.toggle('active', authMode === 'login');
+            authLoginTab.setAttribute('aria-selected', String(authMode === 'login'));
+        }
+        if (authSignupTab) {
+            authSignupTab.classList.toggle('active', authMode === 'signup');
+            authSignupTab.setAttribute('aria-selected', String(authMode === 'signup'));
+        }
+        if (authNameWrap) {
+            authNameWrap.classList.toggle('hidden', authMode !== 'signup');
+        }
+        if (authSubmitBtn) {
+            authSubmitBtn.textContent = authMode === 'signup' ? 'Create account' : 'Log in';
+        }
+        if (authPasswordInput) {
+            authPasswordInput.autocomplete = authMode === 'signup' ? 'new-password' : 'current-password';
+        }
+        setAuthStatus('');
+    }
+
+    function updateAccountUi(profile) {
+        const name = normalize(profile?.name || profile?.email || 'Jarvis User');
+        const email = normalize(profile?.email || 'Signed in');
+        const provider = profile?.provider === 'google' ? 'Google account' : 'Email account';
+        const initials = initialsFromName(name || email);
+
+        accountNameNodes.forEach((node) => {
+            node.textContent = name;
+        });
+        accountEmailNodes.forEach((node) => {
+            node.textContent = email;
+        });
+        accountAvatarNodes.forEach((node) => {
+            node.textContent = initials;
+            if (profile?.picture) {
+                node.style.backgroundImage = `url("${profile.picture}")`;
+                node.style.backgroundSize = 'cover';
+                node.style.color = 'transparent';
+            } else {
+                node.style.backgroundImage = '';
+                node.style.color = '#fff';
+            }
+        });
+        if (settingsAuthProvider) {
+            settingsAuthProvider.textContent = `${provider} · High security`;
+        }
+    }
+
+    function applyAuthProfile(profile) {
+        currentUser = profile;
+        updateAccountUi(profile);
+        document.body.classList.add('authenticated');
+        if (authScreen) {
+            authScreen.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem(authStorageKey);
+        currentUser = null;
+        document.body.classList.remove('authenticated');
+        if (authScreen) {
+            authScreen.removeAttribute('aria-hidden');
+        }
+        closeFloatingMenus();
+        setAuthMode('login');
+        setAuthStatus('Signed out safely.', 'success');
+    }
+
+    function decodeJwtPayload(token) {
+        const [, payload] = String(token || '').split('.');
+        if (!payload) return {};
+        try {
+            const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+            const json = decodeURIComponent(Array.from(atob(normalizedPayload), (char) => {
+                return `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`;
+            }).join(''));
+            return JSON.parse(json);
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function loadGoogleScript() {
+        return new Promise((resolve, reject) => {
+            if (window.google?.accounts?.id) {
+                resolve();
+                return;
+            }
+            const existing = document.querySelector(`script[src="${googleScriptSrc}"]`);
+            if (existing) {
+                existing.addEventListener('load', resolve, { once: true });
+                existing.addEventListener('error', reject, { once: true });
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = googleScriptSrc;
+            script.async = true;
+            script.defer = true;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    async function fetchAuthConfig() {
+        if (location.protocol === 'file:') return {};
+        try {
+            const response = await fetch('/api/config', { cache: 'no-store' });
+            if (!response.ok) return {};
+            return response.json();
+        } catch (error) {
+            return {};
+        }
+    }
+
+    async function verifyGoogleCredential(credential) {
+        const fallback = decodeJwtPayload(credential);
+        try {
+            const response = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential }),
+            });
+            if (response.ok) {
+                const data = await response.json();
+                return data.user || fallback;
+            }
+        } catch (error) {
+            // Local fallback still lets the UI sign in when the API is unavailable.
+        }
+        return fallback;
+    }
+
+    async function handleGoogleCredential(response) {
+        if (!response?.credential) {
+            setAuthStatus('Google did not return a sign-in credential.', 'error');
+            return;
+        }
+        setAuthStatus('Verifying Google account...');
+        const user = await verifyGoogleCredential(response.credential);
+        const email = normalize(user.email || '');
+        if (!email) {
+            setAuthStatus('Google sign-in did not include an email address.', 'error');
+            return;
+        }
+        saveAuthProfile({
+            name: user.name || user.given_name || email,
+            email,
+            provider: 'google',
+            picture: user.picture || '',
+        });
+        setAuthStatus('Signed in with Google.', 'success');
+    }
+
+    async function initGoogleSignIn() {
+        if (!googleSignIn || !googleAuthHint) return;
+        const config = await fetchAuthConfig();
+        const clientId = normalize(config.google_client_id || '');
+        if (!clientId) {
+            googleAuthHint.textContent = 'Google sign-in is ready after GOOGLE_CLIENT_ID is added in Vercel environment variables.';
+            return;
+        }
+        try {
+            await loadGoogleScript();
+            window.google.accounts.id.initialize({
+                client_id: clientId,
+                callback: handleGoogleCredential,
+                ux_mode: 'popup',
+            });
+            window.google.accounts.id.renderButton(googleSignIn, {
+                theme: 'outline',
+                size: 'large',
+                shape: 'pill',
+                text: authMode === 'signup' ? 'signup_with' : 'signin_with',
+                width: Math.min(380, googleSignIn.clientWidth || 380),
+            });
+            googleAuthHint.textContent = 'Google sign-in is secure and verified through the backend.';
+        } catch (error) {
+            googleAuthHint.textContent = 'Google sign-in could not load. Check the domain and Google OAuth setup.';
+        }
+    }
+
+    function initAuth() {
+        const saved = readAuthProfile();
+        if (saved) {
+            applyAuthProfile(saved);
+        } else {
+            document.body.classList.remove('authenticated');
+            updateAccountUi({ name: 'Jarvis User', email: 'Not signed in', provider: 'email' });
+        }
+
+        setAuthMode('login');
+
+        if (authLoginTab) {
+            authLoginTab.addEventListener('click', () => setAuthMode('login'));
+        }
+        if (authSignupTab) {
+            authSignupTab.addEventListener('click', () => setAuthMode('signup'));
+        }
+        if (authForm) {
+            authForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const email = normalize(authEmailInput?.value || '').toLowerCase();
+                const password = authPasswordInput?.value || '';
+                const name = normalize(authNameInput?.value || email.split('@')[0] || 'Jarvis User');
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    setAuthStatus('Enter a valid email address.', 'error');
+                    return;
+                }
+                if (password.length < 6) {
+                    setAuthStatus('Password must be at least 6 characters.', 'error');
+                    return;
+                }
+                saveAuthProfile({ name, email, provider: 'email' });
+                setAuthStatus(authMode === 'signup' ? 'Account created.' : 'Logged in.', 'success');
+            });
+        }
+        initGoogleSignIn();
     }
 
     function now() {
@@ -887,12 +1199,23 @@
 
     function localCoreOfflineMessage(command) {
         const isNews = isNewsCommand(command);
+        if (isCloudHosted()) {
+            return {
+                type: isNews ? 'briefing' : 'response',
+                message: [
+                    'Jarvis Cloud Agent is available for web answers, code, planning, and approval cards.',
+                    'This website cannot directly control private Windows apps by itself because browsers are sandboxed for your security.',
+                    'For desktop actions like opening VS Code, Calculator, terminal commands, or WhatsApp Desktop, connect Local Core on your laptop and approve the action inside Jarvis.',
+                ].join('\n\n'),
+                briefing: isNews ? { message: 'Cloud Agent is online, but live search did not return results for this request.', sections: [] } : undefined,
+            };
+        }
         return {
             type: isNews ? 'briefing' : 'response',
             message: [
                 'Local Core is not running on port 8765, so Jarvis cannot use DDGS/SearXNG search, RAG memory, desktop control, or local scraping from this page.',
                 `Backend URL: ${bridgeUrl}`,
-                `Current page mode: ${location.protocol === 'file:' ? 'file browser safe mode' : `${location.host} browser safe mode`}`,
+                `Current page mode: ${pageModeLabel()}`,
                 restartInstruction,
                 'I did not open Google News or browser search automatically. Start Local Core for full free local search.',
             ].join('\n'),
@@ -1130,6 +1453,13 @@
             bridgeAvailable = false;
         }
 
+        if (shouldAnswerCodeLocally(correctedCommand)) {
+            return {
+                type: 'code',
+                message: localCodeWithRouter(correctedCommand),
+            };
+        }
+
         const cloudResponse = await callCloudAgent(correctedCommand);
         if (cloudResponse) {
             return cloudResponse;
@@ -1144,13 +1474,6 @@
             return browserDailyBriefing(correctedCommand);
         }
 
-        if (shouldAnswerCodeLocally(correctedCommand)) {
-            return {
-                type: 'code',
-                message: localCodeWithRouter(correctedCommand),
-            };
-        }
-
         if (isGeneralQuestion(correctedCommand)) {
             return browserGeneralAnswer(correctedCommand);
         }
@@ -1159,7 +1482,7 @@
     }
 
     async function callCloudAgent(command) {
-        if (location.protocol === 'file:' || location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+        if (!isCloudHosted()) {
             return null;
         }
         try {
@@ -1223,6 +1546,13 @@
     }
 
     async function browserDailyBriefing(command = '') {
+        if (isCloudHosted()) {
+            const message = [
+                'Jarvis Cloud Agent is online, but the cloud search endpoint did not return a briefing for this request.',
+                'Try a more specific prompt such as "latest AI news" or "business news".',
+            ].join('\n\n');
+            return { type: 'briefing', message, briefing: { message, sections: [] } };
+        }
         const message = [
             'Local Core is not running on port 8765, so DDGS/SearXNG briefing is unavailable in this browser tab.',
             `Backend URL: ${bridgeUrl}`,
@@ -1250,6 +1580,18 @@
             return false;
         } finally {
             window.clearTimeout(timeout);
+        }
+    }
+
+    async function checkCloudAgent() {
+        if (!isCloudHosted()) {
+            return false;
+        }
+        try {
+            const response = await fetch('/api/config', { cache: 'no-store' });
+            return response.ok;
+        } catch (error) {
+            return false;
         }
     }
 
@@ -2212,6 +2554,7 @@ if __name__ == "__main__":
             share: parsed.share || null,
             terminal: parsed.terminal || null,
             plan: parsed.plan || null,
+            action: parsed.action || '',
             confirmCommand: isEmail ? 'confirm send email' : (isShare ? 'confirm share' : (isTerminal ? 'confirm terminal' : `confirm ${(parsed.action || 'action').replace('_', ' ')}`)),
             cancelCommand: isEmail ? 'cancel email' : (isShare ? 'cancel share' : (isTerminal ? 'cancel action' : `cancel ${(parsed.action || 'action').replace('_', ' ')}`)),
             browserOnly: Boolean(parsed.browserOnly),
@@ -2259,6 +2602,24 @@ if __name__ == "__main__":
         return 'Terminal needs Local Core for command execution.';
     }
 
+    function runBrowserApprovedAction(approval) {
+        const plan = approval.plan || {};
+        const target = normalize(plan.target || plan.command || '');
+        const normalizedTarget = target.toLowerCase();
+        if (plan.intent === 'open_app_or_site' && websiteAliases[normalizedTarget]) {
+            window.open(websiteAliases[normalizedTarget], '_blank', 'noopener,noreferrer');
+            return `Approved. I opened ${target} in a new browser tab.`;
+        }
+        if (plan.execution === 'local_core_required') {
+            return [
+                'Approved in the web UI.',
+                'This action needs private desktop access, so the website cannot run it directly from Vercel.',
+                `${restartInstruction} Then repeat the command and Jarvis will continue through Local Core.`,
+            ].join('\n\n');
+        }
+        return 'Approved. Jarvis Cloud Agent completed the web-safe planning step.';
+    }
+
     async function approvePendingAction() {
         if (!pendingApproval || isBusy) {
             return;
@@ -2276,6 +2637,8 @@ if __name__ == "__main__":
                 response = { type: 'response', message: sendBrowserShare(approval.share) };
             } else if (approval.browserOnly && approval.type === 'confirm_terminal') {
                 response = { type: 'terminal', message: runBrowserTerminal(approval.terminal?.command || '') };
+            } else if (approval.browserOnly && approval.type === 'confirm_action') {
+                response = { type: 'response', message: runBrowserApprovedAction(approval) };
             } else {
                 response = tryParseJson(await callAssistant(approval.confirmCommand));
             }
@@ -2500,28 +2863,40 @@ if __name__ == "__main__":
         }
     }
 
-    function applyConnectionLabels(label, connected) {
+    function applyConnectionLabels(label, connected, options = {}) {
+        const isCloud = options.mode === 'cloud';
         backendBadge.textContent = label;
         backendBadge.classList.toggle('success', connected);
         backendBadge.classList.toggle('warn', !connected);
-        aiValue.textContent = connected ? 'READY' : 'SAFE';
+        aiValue.textContent = connected ? (isCloud ? 'CLOUD' : 'READY') : 'SAFE';
         if (connectionPanel) {
+            connectionPanel.classList.toggle('cloud', isCloud);
             connectionPanel.classList.toggle('hidden', connected);
         }
         if (connectionTitle) {
-            connectionTitle.textContent = connected ? 'Local Core connected' : 'Local Core offline';
+            connectionTitle.textContent = isCloud
+                ? (connected ? 'Jarvis Cloud Agent online' : 'Cloud Agent unavailable')
+                : (connected ? 'Local Core connected' : 'Local Core offline');
         }
         if (connectionDetails) {
-            const pageMode = location.protocol === 'file:' ? 'file browser mode' : `${location.host} browser mode`;
             const stack = lastHealth?.search_stack;
             const pieces = stack
                 ? ['DDGS', 'SearXNG', 'Crawl4AI', 'Playwright', 'BeautifulSoup']
                     .filter((name) => stack[name.toLowerCase()] || (name === 'BeautifulSoup' && stack.beautifulsoup))
                     .join(', ')
                 : 'DDGS/SearXNG';
-            connectionDetails.textContent = connected
-                ? `Backend URL: ${bridgeUrl} · Page mode: ${pageMode} · Free search stack: ${pieces || 'fallback parser'} · RAG, scraping, and desktop actions are available.`
-                : `Backend URL: ${bridgeUrl} · Page mode: ${pageMode} · ${restartInstruction}`;
+            if (isCloud) {
+                connectionDetails.textContent = connected
+                    ? `Page mode: ${pageModeLabel()} · Web planning, approvals, Google login, and cloud API are active. Desktop app control uses the optional Local Core connector.`
+                    : `Page mode: ${pageModeLabel()} · Refresh the website or check the Vercel deployment. Desktop-only actions still require Local Core.`;
+            } else {
+                connectionDetails.textContent = connected
+                    ? `Backend URL: ${bridgeUrl} · Page mode: ${pageModeLabel()} · Free search stack: ${pieces || 'fallback parser'} · RAG, scraping, and desktop actions are available.`
+                    : `Backend URL: ${bridgeUrl} · Page mode: ${pageModeLabel()} · ${restartInstruction}`;
+            }
+        }
+        if (connectionLink) {
+            connectionLink.classList.toggle('hidden', isCloud);
         }
     }
 
@@ -2541,6 +2916,10 @@ if __name__ == "__main__":
             applyConnectionLabels('Desktop Core', true);
         } else if (await checkBridge()) {
             applyConnectionLabels('Local Core', true);
+        } else if (await checkCloudAgent()) {
+            applyConnectionLabels('Cloud Agent', true, { mode: 'cloud' });
+        } else if (isCloudHosted()) {
+            applyConnectionLabels('Cloud Offline', false, { mode: 'cloud' });
         } else {
             applyConnectionLabels('Safe Mode', false);
         }
@@ -2593,6 +2972,10 @@ if __name__ == "__main__":
             event.stopPropagation();
             toggleFloatingMenu(accountMenu, accountButton);
         });
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
 
         [modelMenu, plusMenu, accountMenu].forEach((menu) => {
             menu.addEventListener('click', (event) => {
@@ -2883,6 +3266,7 @@ if __name__ == "__main__":
     }
 
     function init() {
+        initAuth();
         bindEvents();
         renderHistory();
         updateConnectionMode();

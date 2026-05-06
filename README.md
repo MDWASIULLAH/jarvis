@@ -14,6 +14,8 @@ It is built to behave like an approval-first autonomous assistant: Jarvis unders
 - Local RAG memory and skill packs
 - Coding assistant defaults for Ollama + Qwen2.5-Coder
 - Vercel-ready web UI and Python planner API
+- Cloud web mode that does not require localhost for web-safe tasks
+- Login/sign-up UI with Google Identity Services support
 - Mobile responsive sidebar and chat interface
 
 ## Architecture
@@ -28,6 +30,22 @@ User Prompt
 ```
 
 The Vercel app can host the UI and planning API. Desktop actions such as opening VS Code, running terminal commands, scrolling YouTube, editing local files, or sending messages from the laptop require the Local Core connector because Vercel cannot control a user's Windows desktop directly.
+
+## Authentication
+
+Jarvis includes a web sign-in screen:
+
+- email sign-in/sign-up stored in the browser for local Jarvis profiles
+- Google sign-in through Google Identity Services
+- server-side Google token verification at `/api/auth`
+
+To enable Google login on Vercel, create a Google OAuth Web Client and add this environment variable in Vercel:
+
+```text
+GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+```
+
+Add the Vercel domain, for example `https://jarvisj1.vercel.app`, as an authorized JavaScript origin in Google Cloud Console.
 
 ## Run Locally
 
