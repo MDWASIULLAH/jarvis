@@ -1553,16 +1553,32 @@ def _auto_scroll_loop(interval: float, key_code: int, startup_delay: float = 0.0
             return
 
 
-def _start_auto_scroll(interval: float = 8.0, key_code: int = 0x28, startup_delay: float = 4.0) -> str:
+def _start_auto_scroll(
+    interval: float = 8.0,
+    key_code: int = 0x28,
+    startup_delay: float = 6.0,
+    open_url: str = "",
+) -> str:
     global AUTO_SCROLL_THREAD
     AUTO_SCROLL_STOP.set()
     if AUTO_SCROLL_THREAD and AUTO_SCROLL_THREAD.is_alive():
         AUTO_SCROLL_THREAD.join(timeout=0.4)
 
+    if open_url:
+        webbrowser.open(open_url)
+
     AUTO_SCROLL_STOP.clear()
     AUTO_SCROLL_THREAD = threading.Thread(target=_auto_scroll_loop, args=(interval, key_code, startup_delay), daemon=True)
     AUTO_SCROLL_THREAD.start()
-    return f"Auto scroll will start in {int(startup_delay)} seconds. Focus YouTube Shorts or the target app now. Say stop scrolling to stop."
+    if open_url:
+        return (
+            f"Opening YouTube Shorts. Auto scroll will start in {int(startup_delay)} seconds. "
+            "Keep the Shorts tab focused. Say stop scrolling to stop."
+        )
+    return (
+        f"Auto scroll will start in {int(startup_delay)} seconds. "
+        "Focus YouTube Shorts or the target app now. Say stop scrolling to stop."
+    )
 
 
 def _stop_auto_scroll() -> str:
@@ -1570,16 +1586,28 @@ def _stop_auto_scroll() -> str:
     return "Auto scroll stopped."
 
 
-def _confirm_auto_scroll(command: str) -> str:
+def _confirm_auto_scroll(command: str, open_url: str = "") -> str:
     global PENDING_ACTION
     interval_match = re.search(r"every\s+(\d+)", command, re.IGNORECASE)
     interval = float(interval_match.group(1)) if interval_match else 8.0
     interval = min(max(interval, 2.0), 60.0)
-    PENDING_ACTION = {"type": "auto_scroll", "interval": interval, "key_code": 0x28, "startup_delay": 4.0}
+    PENDING_ACTION = {
+        "type": "auto_scroll",
+        "interval": interval,
+        "key_code": 0x28,
+        "startup_delay": 6.0 if open_url else 4.0,
+        "open_url": open_url,
+    }
+    target = "YouTube Shorts" if open_url else "the focused window"
     return _response(
-        f"This will scroll the focused window every {int(interval)} seconds until you say stop scrolling. After approving, focus YouTube Shorts or the target app within 4 seconds.",
+        (
+            f"Approve auto-scrolling {target} every {int(interval)} seconds until you say stop scrolling? "
+            "After approval, keep the target tab focused."
+        ),
         "confirm_action",
         action="auto_scroll",
+        confirmCommand="confirm auto scroll",
+        cancelCommand="cancel action",
     )
 
 
@@ -3305,10 +3333,25 @@ def process_command(command):
         PENDING_ACTION = None
         return _response(_execute_agent_workflow(action), "action", plan=action.get("plan"))
 
-    if normalized in {"confirm auto scroll", "confirm scroll", "yes scroll"} and isinstance(PENDING_ACTION, dict) and PENDING_ACTION.get("type") == "auto_scroll":
+    if normalized in {
+        "confirm auto scroll",
+        "confirm scroll",
+        "yes scroll",
+        "approve auto scroll",
+        "approve scroll",
+        "start auto scroll now",
+        "start scrolling now",
+    } and isinstance(PENDING_ACTION, dict) and PENDING_ACTION.get("type") == "auto_scroll":
         action = PENDING_ACTION
         PENDING_ACTION = None
-        return _response(_start_auto_scroll(action.get("interval", 8.0), action.get("key_code", 0x28), action.get("startup_delay", 4.0)))
+        return _response(
+            _start_auto_scroll(
+                action.get("interval", 8.0),
+                action.get("key_code", 0x28),
+                action.get("startup_delay", 4.0),
+                action.get("open_url", ""),
+            )
+        )
 
     if normalized in {"cancel action", "cancel shutdown"}:
         PENDING_ACTION = None
@@ -3399,10 +3442,19 @@ def process_command(command):
     if url_match and any(word in normalized for word in ["read", "summarize", "summary", "link"]):
         return _response(_read_link(url_match.group(0)))
 
-    if any(phrase in normalized for phrase in ["scroll shorts", "scroll the shorts", "auto scroll", "start scrolling", "scroll youtube shorts", "keep scrolling"]):
-        if "youtube" in normalized or "short" in normalized:
-            webbrowser.open("https://www.youtube.com/shorts")
-        return _confirm_auto_scroll(text)
+    if any(phrase in normalized for phrase in [
+        "scroll shorts",
+        "scroll the shorts",
+        "auto scroll",
+        "start scrolling",
+        "scroll youtube shorts",
+        "keep scrolling",
+        "youtube shorts auto",
+        "open youtube shorts and scroll",
+        "open youtube shorts and start scrolling",
+    ]):
+        open_url = "https://www.youtube.com/shorts" if ("youtube" in normalized or "short" in normalized) else ""
+        return _confirm_auto_scroll(text, open_url)
 
     terminal_match = re.search(r"^(?:terminal|run command|run terminal|shell|cmd)\s+(.+)$", text, re.IGNORECASE)
     if terminal_match:
