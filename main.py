@@ -609,6 +609,16 @@ def _supabase_config() -> dict:
         )
         or _squash(settings.get("supabase_anon_key", ""))
     )
+    if not supabase_url or not supabase_key:
+        cloud_config_url = _first_env("JARVIS_CLOUD_CONFIG_URL") or "https://jarvisj1.vercel.app/api/config"
+        try:
+            request = urllib.request.Request(cloud_config_url, headers={"User-Agent": "JarvisLocalCore/1.0"})
+            with urllib.request.urlopen(request, timeout=6) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            supabase_url = supabase_url or _squash(data.get("supabase_url", ""))
+            supabase_key = supabase_key or _squash(data.get("supabase_anon_key", ""))
+        except Exception:
+            pass
     return {"url": supabase_url, "anon_key": supabase_key}
 
 
