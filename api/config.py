@@ -3,6 +3,14 @@ import os
 from http.server import BaseHTTPRequestHandler
 
 
+def _env(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+    return ""
+
+
 class handler(BaseHTTPRequestHandler):
     def _send(self, status: int, payload: dict) -> None:
         body = json.dumps(payload).encode("utf-8")
@@ -24,6 +32,15 @@ class handler(BaseHTTPRequestHandler):
             {
                 "mode": "jarvis-cloud-agent",
                 "google_client_id": os.getenv("GOOGLE_CLIENT_ID", "").strip(),
+                "supabase_url": _env("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL"),
+                "supabase_anon_key": _env(
+                    "SUPABASE_ANON_KEY",
+                    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+                    "SUPABASE_PUBLISHABLE_KEY",
+                    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+                    "VITE_SUPABASE_ANON_KEY",
+                    "VITE_SUPABASE_PUBLISHABLE_KEY",
+                ),
                 "desktop_connector": "optional-local-core",
             },
         )

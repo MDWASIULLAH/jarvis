@@ -118,12 +118,16 @@
     let lastGeneratedMessage = '';
     let authMode = 'login';
     let currentUser = null;
+    let authConfigPromise = null;
+    let supabaseClientPromise = null;
+    let supabaseAuthBound = false;
 
     const bridgeUrl = 'http://127.0.0.1:8765';
     const restartInstruction = 'Run START_JARVIS.bat to enable Windows app control through Local Core.';
     const historyStorageKey = 'jarvis.chat.history.v1';
     const authStorageKey = 'jarvis.auth.profile.v1';
     const googleScriptSrc = 'https://accounts.google.com/gsi/client';
+    const supabaseScriptSrc = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
     const starterHistory = [
         { title: 'What Jarvis can do', command: 'what can you do' },
         { title: 'YouTube Shorts control', command: 'open youtube shorts and start scrolling' },
@@ -318,7 +322,9 @@
     function updateAccountUi(profile) {
         const name = normalize(profile?.name || profile?.email || 'Jarvis User');
         const email = normalize(profile?.email || 'Signed in');
-        const provider = profile?.provider === 'google' ? 'Google account' : 'Email account';
+        const provider = profile?.provider === 'google'
+            ? 'Google account'
+            : (profile?.provider === 'supabase' ? 'Supabase account' : 'Email account');
         const initials = initialsFromName(name || email);
 
         accountNameNodes.forEach((node) => {
@@ -352,7 +358,15 @@
         }
     }
 
-    function logout() {
+    async function logout() {
+        try {
+            const client = await initSupabaseClient();
+            if (client) {
+                await client.auth.signOut();
+            }
+        } catch (error) {
+            // Local sign-out still clears the UI.
+        }
         localStorage.removeItem(authStorageKey);
         currentUser = null;
         document.body.classList.remove('authenticated');
@@ -411,6 +425,170 @@
         }
     }
 
+    function getAuthConfig() {
+        if (!authConfigPromise) {
+            authConfigPromise = fetchAuthConfig();
+        }
+        return authConfigPromise;
+    }
+
+    function loadSupabaseScript() {
+        return new Promise((resolve, reject) => {
+            if (window.supabase?.createClient) {
+                resolve();
+                return;
+            }
+            const existing = document.querySelector(`script[src="${supabaseScriptSrc}"]`);
+            if (existing) {
+                existing.addEventListener('load', resolve, { once: true });
+                existing.addEventListener('error', reject, { once: true });
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = supabaseScriptSrc;
+            script.async = true;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    function supabaseConfigFrom(config) {
+        return {
+            url: normalize(config.supabase_url || config.supabase?.url || ''),
+            key: normalize(config.supabase_anon_key || config.supabase?.anon_key || ''),
+        };
+    }
+
+    async function initSupabaseClient() {
+        if (supabaseClientPromise) {
+            return supabaseClientPromise;
+        }
+
+        supabaseClientPromise = (async () => {
+            const config = supabaseConfigFrom(await getAuthConfig());
+            if (!config.url || !config.key) {
+                return null;
+            }
+            await loadSupabaseScript();
+            if (!window.supabase?.createClient) {
+                throw new Error('Supabase client could not load.');
+            }
+            return window.supabase.createClient(config.url, config.key, {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true,
+                },
+            });
+        })();
+
+        return supabaseClientPromise;
+    }
+
+    function profileFromSupabaseUser(user) {
+        const metadata = user?.user_metadata || {};
+        return {
+            name: metadata.full_name || metadata.name || user?.email || 'Jarvis User',
+            email: user?.email || '',
+            provider: 'supabase',
+            picture: metadata.avatar_url || metadata.picture || '',
+        };
+    }
+
+    async function requireSupabaseClient() {
+        const client = await initSupabaseClient();
+        if (!client) {
+            throw new Error('Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then reload Jarvis.');
+        }
+        return client;
+    }
+
+    async function syncSupabaseSession() {
+        try {
+            const client = await initSupabaseClient();
+            if (!client) {
+                return false;
+            }
+
+            if (!supabaseAuthBound) {
+                supabaseAuthBound = true;
+                client.auth.onAuthStateChange((event, session) => {
+                    if (session?.user) {
+                        saveAuthProfile(profileFromSupabaseUser(session.user));
+                    } else if (event === 'SIGNED_OUT') {
+                        localStorage.removeItem(authStorageKey);
+                        currentUser = null;
+                        document.body.classList.remove('authenticated');
+                        updateAccountUi({ name: 'Jarvis User', email: 'Not signed in', provider: 'email' });
+                    }
+                });
+            }
+
+            const { data, error } = await client.auth.getSession();
+            if (error) {
+                throw error;
+            }
+            if (data?.session?.user) {
+                saveAuthProfile(profileFromSupabaseUser(data.session.user));
+                return true;
+            }
+        } catch (error) {
+            setAuthStatus(error.message || 'Supabase session check failed.', 'error');
+        }
+        return false;
+    }
+
+    async function signInWithSupabaseEmail(email, password, name) {
+        const client = await requireSupabaseClient();
+        if (authMode === 'signup') {
+            const { data, error } = await client.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { full_name: name },
+                    emailRedirectTo: `${location.origin}${location.pathname}`,
+                },
+            });
+            if (error) throw error;
+            if (data?.session?.user) {
+                saveAuthProfile(profileFromSupabaseUser(data.session.user));
+                setAuthStatus('Account created and signed in.', 'success');
+            } else {
+                setAuthStatus('Account created. Check your email to confirm the account, then log in.', 'success');
+            }
+            return;
+        }
+
+        const { data, error } = await client.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (data?.user) {
+            saveAuthProfile(profileFromSupabaseUser(data.user));
+            setAuthStatus('Logged in with Supabase.', 'success');
+        }
+    }
+
+    async function signInWithSupabaseGoogle() {
+        try {
+            const client = await requireSupabaseClient();
+            setAuthStatus('Opening Google sign-in through Supabase...');
+            const { error } = await client.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${location.origin}${location.pathname}`,
+                },
+            });
+            if (error) {
+                throw error;
+            }
+        } catch (error) {
+            setAuthStatus(error.message || 'Google sign-in failed.', 'error');
+            if (googleAuthHint) {
+                googleAuthHint.textContent = 'Google sign-in needs Supabase URL/key and the Google provider enabled in Supabase Auth.';
+            }
+        }
+    }
+
     async function verifyGoogleCredential(credential) {
         const fallback = decodeJwtPayload(credential);
         try {
@@ -431,8 +609,8 @@
 
     function showGoogleSetupMessage() {
         const message = [
-            'Google sign-in button is ready, but a Google OAuth Client ID is not configured yet.',
-            'Add GOOGLE_CLIENT_ID in Vercel or set it before starting Local Core, then reload Jarvis.',
+            'Google sign-in uses Supabase Auth.',
+            'Add your Supabase URL and anon/publishable key, enable Google in Supabase Auth, then reload Jarvis.',
         ].join(' ');
         setAuthStatus(message, 'error');
         if (googleAuthHint) {
@@ -466,10 +644,15 @@
         if (googleFallbackBtn) {
             googleFallbackBtn.hidden = false;
         }
-        const config = await fetchAuthConfig();
+        const config = await getAuthConfig();
+        const supabaseConfig = supabaseConfigFrom(config);
+        if (supabaseConfig.url && supabaseConfig.key) {
+            googleAuthHint.textContent = 'Google sign-in is connected through Supabase Auth.';
+            return;
+        }
         const clientId = normalize(config.google_client_id || '');
         if (!clientId) {
-            googleAuthHint.textContent = 'Google sign-in appears here. Add GOOGLE_CLIENT_ID to activate the real Google popup.';
+            googleAuthHint.textContent = 'Google sign-in appears here. Add Supabase URL/key and enable Google in Supabase Auth to activate it.';
             return;
         }
         try {
@@ -498,6 +681,7 @@
     }
 
     function initAuth() {
+        syncSupabaseSession();
         const saved = readAuthProfile();
         if (saved) {
             applyAuthProfile(saved);
@@ -515,7 +699,7 @@
             authSignupTab.addEventListener('click', () => setAuthMode('signup'));
         }
         if (authForm) {
-            authForm.addEventListener('submit', (event) => {
+            authForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const email = normalize(authEmailInput?.value || '').toLowerCase();
                 const password = authPasswordInput?.value || '';
@@ -528,12 +712,16 @@
                     setAuthStatus('Password must be at least 6 characters.', 'error');
                     return;
                 }
-                saveAuthProfile({ name, email, provider: 'email' });
-                setAuthStatus(authMode === 'signup' ? 'Account created.' : 'Logged in.', 'success');
+                try {
+                    setAuthStatus(authMode === 'signup' ? 'Creating Supabase account...' : 'Logging in with Supabase...');
+                    await signInWithSupabaseEmail(email, password, name);
+                } catch (error) {
+                    setAuthStatus(error.message || 'Supabase email login failed.', 'error');
+                }
             });
         }
         if (googleFallbackBtn) {
-            googleFallbackBtn.addEventListener('click', showGoogleSetupMessage);
+            googleFallbackBtn.addEventListener('click', signInWithSupabaseGoogle);
         }
         initGoogleSignIn();
     }

@@ -33,19 +33,34 @@ The Vercel app can host the UI and planning API. Desktop actions such as opening
 
 ## Authentication
 
-Jarvis includes a web sign-in screen:
+Jarvis includes a Supabase Auth sign-in screen:
 
-- email sign-in/sign-up stored in the browser for local Jarvis profiles
-- Google sign-in through Google Identity Services
-- server-side Google token verification at `/api/auth`
+- email sign-in/sign-up with `supabase.auth.signInWithPassword` and `supabase.auth.signUp`
+- Google sign-in with `supabase.auth.signInWithOAuth({ provider: "google" })`
+- browser session restore through the Supabase client
 
-To enable Google login on Vercel, create a Google OAuth Web Client and add this environment variable in Vercel:
+Set these public Supabase variables in Vercel, `.env`, or `.env.local`:
 
 ```text
-GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
 ```
 
-Add the Vercel domain, for example `https://jarvisj1.vercel.app`, as an authorized JavaScript origin in Google Cloud Console.
+These aliases are also supported:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_PUBLISHABLE_KEY
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+To enable Google login, turn on the Google provider in Supabase Auth and add your local and Vercel URLs to the Supabase redirect allow list:
+
+```text
+http://127.0.0.1:8765/index.html
+https://jarvisj1.vercel.app/index.html
+```
 
 ## Run Locally
 

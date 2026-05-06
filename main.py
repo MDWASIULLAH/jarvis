@@ -58,6 +58,27 @@ OLLAMA_UNAVAILABLE_UNTIL = 0.0
 eel.init("www")
 
 
+def _load_env_file() -> None:
+    for env_file in (BASE_DIR / ".env", BASE_DIR / ".env.local"):
+        if not env_file.exists():
+            continue
+        try:
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                text = line.strip()
+                if not text or text.startswith("#") or "=" not in text:
+                    continue
+                key, value = text.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = value
+        except Exception:
+            continue
+
+
+_load_env_file()
+
+
 def _brain():
     global BRAIN_MODULE
 
@@ -199,6 +220,8 @@ DEFAULT_SETTINGS = {
     "whatsapp_number": "",
     "ollama_model": "qwen2.5-coder:7b",
     "google_client_id": "",
+    "supabase_url": "",
+    "supabase_anon_key": "",
     "work_mode": "simple",
     "voice_enabled": True,
     "aliases": {},
@@ -562,6 +585,31 @@ def _response(message: str, kind: str = "response", speak_result: bool = False, 
 def _google_client_id() -> str:
     settings = _load_settings()
     return _squash(os.getenv("GOOGLE_CLIENT_ID", "") or settings.get("google_client_id", ""))
+
+
+def _first_env(*names: str) -> str:
+    for name in names:
+        value = _squash(os.getenv(name, ""))
+        if value:
+            return value
+    return ""
+
+
+def _supabase_config() -> dict:
+    settings = _load_settings()
+    supabase_url = _first_env("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "VITE_SUPABASE_URL") or _squash(settings.get("supabase_url", ""))
+    supabase_key = (
+        _first_env(
+            "SUPABASE_ANON_KEY",
+            "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+            "SUPABASE_PUBLISHABLE_KEY",
+            "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+            "VITE_SUPABASE_ANON_KEY",
+            "VITE_SUPABASE_PUBLISHABLE_KEY",
+        )
+        or _squash(settings.get("supabase_anon_key", ""))
+    )
+    return {"url": supabase_url, "anon_key": supabase_key}
 
 
 def _route_command(command: str) -> dict:
@@ -3600,11 +3648,14 @@ class JarvisBridgeHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True, "settings": _public_settings()})
             return
         if path.rstrip("/") == "/api/config":
+            supabase = _supabase_config()
             self._send_json(
                 200,
                 {
                     "mode": "jarvis-local-core",
                     "google_client_id": _google_client_id(),
+                    "supabase_url": supabase["url"],
+                    "supabase_anon_key": supabase["anon_key"],
                     "desktop_connector": "connected",
                 },
             )
