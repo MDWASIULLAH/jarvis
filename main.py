@@ -2718,6 +2718,15 @@ def _ollama_reply(command: str) -> str | None:
 
 def _open_source_briefing(command: str = "") -> dict | None:
     normalized = _normalized(command)
+    if re.fullmatch(r"(daily\s+briefing|today'?s?\s+briefing|latest\s+news|today'?s?\s+news|latest\s+news\s+of\s+whole\s+world)", normalized):
+        try:
+            rss_items = _intelligence().collect_rss_news(command, max_items=12, timeout=1.5)
+            rss_briefing = _intelligence().format_news_briefing(command, rss_items)
+            if rss_briefing:
+                return rss_briefing
+        except Exception:
+            pass
+
     categories = [
         ("Business", r"\b(business|finance|financial|market|markets|stock|stocks|economy|economic)\b", "latest business finance markets economy news"),
         ("Sports", r"\b(sport|sports|cricket|football|ipl|nba|tennis)\b", "latest sports cricket football news"),

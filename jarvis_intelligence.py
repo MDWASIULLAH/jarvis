@@ -368,11 +368,9 @@ def format_news_briefing(prompt: str, items: list[dict]) -> dict | None:
             published = squash(item.get("published", ""))
             short = summary[:220]
             suffix = f" ({source})" if source else ""
-            lines.append(f"- {title}{suffix}")
-            if short:
-                lines.append(f"  {short}")
-            if link:
-                lines.append(f"  Source: {link}")
+            detail = f": {short}" if short else ""
+            source_link = f" Source: {link}" if link else ""
+            lines.append(f"- {title}{suffix}{detail}{source_link}")
             section_items.append(
                 {
                     "title": title,
@@ -426,9 +424,232 @@ def detect_code_language(prompt: str) -> str:
     return "python"
 
 
+def title_from_prompt(prompt: str, fallback: str = "Smart Website") -> str:
+    text = squash(prompt)
+    text = re.sub(r"\b(write|create|generate|make|build|code|html|css|javascript|website|webpage|page|for|my|a|an|the)\b", " ", text, flags=re.IGNORECASE)
+    words = [word for word in re.sub(r"[^a-zA-Z0-9 ]+", " ", text).split() if word][:5]
+    if not words:
+        return fallback
+    return " ".join(word[:1].upper() + word[1:].lower() for word in words)
+
+
+def html_preview_template(prompt: str) -> str:
+    text = squash(prompt).lower()
+    title = "Name Fixer" if "name fixer" in text else "Calculator" if "calculator" in text else "Task Manager" if re.search(r"\b(todo|task)\b", text) else title_from_prompt(prompt)
+    is_name = "name fixer" in text
+    is_calc = "calculator" in text
+    is_task = re.search(r"\b(todo|task)\b", text) is not None
+
+    if is_name:
+        tool_markup = """
+          <textarea id="nameInput" placeholder="Example:   md    WASI__portfolio site"></textarea>
+          <div class="actions">
+            <button id="runBtn">Fix name</button>
+            <button id="copyBtn" class="secondary">Copy best</button>
+          </div>
+          <section id="results" class="results"></section>
+        """
+        script = """
+      const input = document.querySelector("#nameInput");
+      const results = document.querySelector("#results");
+      function cleanWords(value) {
+        return value.replace(/[_-]+/g, " ").replace(/[^a-zA-Z0-9 ]+/g, "").trim().split(/\\s+/).filter(Boolean);
+      }
+      function render() {
+        const words = cleanWords(input.value);
+        if (!words.length) {
+          results.innerHTML = "<p>Type a name to fix it.</p>";
+          return;
+        }
+        const display = words.map((word) => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+        const username = words.map((word) => word.toLowerCase()).join("");
+        const slug = words.map((word) => word.toLowerCase()).join("-");
+        results.innerHTML = [
+          ["Best display name", display],
+          ["Username", username],
+          ["Website slug", slug],
+          ["Initials", words.map((word) => word[0].toUpperCase()).join("")]
+        ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+      }
+      document.querySelector("#runBtn").addEventListener("click", render);
+      document.querySelector("#copyBtn").addEventListener("click", async () => {
+        const best = results.querySelector("strong")?.textContent || "";
+        if (best) await navigator.clipboard.writeText(best);
+      });
+      input.addEventListener("input", render);
+      render();
+        """
+        subtitle = "Clean messy names into display names, usernames, slugs, and initials."
+    elif is_calc:
+        tool_markup = """
+          <input id="display" value="0" readonly aria-label="Calculator display">
+          <div id="keys" class="keys"></div>
+        """
+        script = """
+      const keys = ["C", "(", ")", "/", "7", "8", "9", "*", "4", "5", "6", "-", "1", "2", "3", "+", "0", ".", "Back", "="];
+      const display = document.querySelector("#display");
+      document.querySelector("#keys").innerHTML = keys.map((key) => `<button class="${"+-*/=".includes(key) ? "op" : ""}">${key}</button>`).join("");
+      document.querySelector("#keys").addEventListener("click", (event) => {
+        const key = event.target.textContent;
+        if (key === "C") display.value = "0";
+        else if (key === "Back") display.value = display.value.slice(0, -1) || "0";
+        else if (key === "=") display.value = /^[0-9+\\-*/(). ]+$/.test(display.value) ? String(Function("return " + display.value)()) : "Error";
+        else display.value = display.value === "0" ? key : display.value + key;
+      });
+        """
+        subtitle = "A polished browser calculator with safe expression validation."
+    elif is_task:
+        tool_markup = """
+          <form id="taskForm" class="task-form">
+            <input id="taskInput" placeholder="Add a task">
+            <button>Add</button>
+          </form>
+          <ul id="taskList" class="task-list"></ul>
+        """
+        script = """
+      const form = document.querySelector("#taskForm");
+      const input = document.querySelector("#taskInput");
+      const list = document.querySelector("#taskList");
+      const tasks = ["Design UI", "Write code", "Test on mobile"];
+      function render() {
+        list.innerHTML = tasks.map((task, index) => `<li><button data-index="${index}">${task}</button></li>`).join("");
+      }
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (input.value.trim()) tasks.push(input.value.trim());
+        input.value = "";
+        render();
+      });
+      list.addEventListener("click", (event) => event.target.closest("button")?.classList.toggle("done"));
+      render();
+        """
+        subtitle = "Add, scan, and complete tasks in a clean responsive interface."
+    else:
+        tool_markup = """
+          <div class="feature-grid">
+            <article><span>01</span><strong>Clear Layout</strong><p>Readable sections with strong hierarchy and mobile spacing.</p></article>
+            <article><span>02</span><strong>Real Controls</strong><p>Buttons, cards, and inputs feel like a working product.</p></article>
+            <article><span>03</span><strong>Responsive</strong><p>The page adapts cleanly from phone to desktop.</p></article>
+          </div>
+          <button id="actionBtn">Try interaction</button>
+          <p id="status" class="status">Ready.</p>
+        """
+        script = """
+      document.querySelector("#actionBtn").addEventListener("click", () => {
+        document.querySelector("#status").textContent = "Interaction working. Replace this with your app logic.";
+      });
+        """
+        subtitle = f"A polished responsive {title} page generated from your prompt."
+
+    return f"""```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{title}</title>
+    <style>
+      * {{ box-sizing: border-box; }}
+      body {{
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #111827;
+        background:
+          radial-gradient(circle at top left, rgba(20, 184, 166, .18), transparent 32rem),
+          linear-gradient(135deg, #f8fafc, #eef2f7);
+      }}
+      main {{ width: min(980px, 100%); display: grid; gap: 18px; }}
+      .hero {{
+        display: grid;
+        gap: 20px;
+        padding: clamp(22px, 5vw, 48px);
+        border: 1px solid #dbe3ec;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, .92);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, .12);
+      }}
+      .eyebrow {{ margin: 0; color: #0f766e; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }}
+      h1 {{ margin: 0; font-size: clamp(2.4rem, 8vw, 5rem); line-height: .95; letter-spacing: 0; }}
+      .lead {{ max-width: 720px; margin: 0; color: #5b6472; font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.65; }}
+      textarea, input {{
+        width: 100%;
+        min-height: 48px;
+        padding: 13px 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        background: #fff;
+        font: inherit;
+      }}
+      textarea {{ min-height: 128px; resize: vertical; }}
+      button {{
+        min-height: 44px;
+        padding: 11px 15px;
+        border: 0;
+        border-radius: 12px;
+        background: #0f766e;
+        color: white;
+        font-weight: 800;
+        cursor: pointer;
+      }}
+      button.secondary {{ color: #111827; background: #e5e7eb; }}
+      .actions, .task-form {{ display: flex; flex-wrap: wrap; gap: 10px; }}
+      .task-form input {{ flex: 1 1 220px; }}
+      .feature-grid, .results, .task-list {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        padding: 0;
+        list-style: none;
+      }}
+      article, li button, .status {{
+        width: 100%;
+        display: grid;
+        gap: 6px;
+        padding: 16px;
+        border: 1px solid #e4e7ec;
+        border-radius: 14px;
+        background: #f8fafc;
+        text-align: left;
+      }}
+      article span {{ color: #64748b; font-size: .82rem; font-weight: 800; }}
+      article strong {{ font-size: 1.05rem; overflow-wrap: anywhere; }}
+      article p, .status {{ margin: 0; color: #667085; line-height: 1.5; }}
+      .keys {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }}
+      .keys button {{ background: #e5e7eb; color: #111827; }}
+      .keys .op {{ background: #0f766e; color: #fff; }}
+      .done {{ text-decoration: line-through; opacity: .5; }}
+      @media (max-width: 620px) {{
+        body {{ padding: 14px; }}
+        .hero {{ border-radius: 14px; }}
+        .feature-grid, .results, .task-list {{ grid-template-columns: 1fr; }}
+      }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Preview ready</p>
+        <h1>{title}</h1>
+        <p class="lead">{subtitle}</p>
+        {tool_markup}
+      </section>
+    </main>
+    <script>
+{script}
+    </script>
+  </body>
+</html>
+```"""
+
+
 def cloud_code_response(prompt: str) -> str:
     language = detect_code_language(prompt)
     text = squash(prompt).lower()
+    title = title_from_prompt(prompt, fallback="Generated App")
     if language == "python" and "calculator" in text:
         return """```python
 def calculate(expression: str) -> float:
@@ -454,52 +675,76 @@ if __name__ == "__main__":
     main()
 ```"""
     if language == "html":
-        title = "Jarvis Generated Website"
-        if "name fixer" in text:
-            title = "Name Fixer"
-        return f"""```html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{title}</title>
-    <style>
-      * {{ box-sizing: border-box; }}
-      body {{ margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: Inter, system-ui, sans-serif; background: #f4f7fb; color: #111827; }}
-      main {{ width: min(760px, 100%); display: grid; gap: 16px; }}
-      section {{ padding: 22px; border: 1px solid #dbe3ec; border-radius: 14px; background: #fff; box-shadow: 0 18px 45px rgba(15, 23, 42, .08); }}
-      h1 {{ margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3.5rem); }}
-      p {{ margin: 0 0 14px; color: #5b6472; line-height: 1.6; }}
-      textarea, input {{ width: 100%; min-height: 48px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; }}
-      button {{ min-height: 42px; margin-top: 10px; padding: 10px 14px; border: 0; border-radius: 10px; background: #0f766e; color: white; font-weight: 800; cursor: pointer; }}
-      .result {{ margin-top: 14px; padding: 14px; border-radius: 10px; background: #f8fafc; overflow-wrap: anywhere; }}
-    </style>
-  </head>
-  <body>
-    <main>
-      <section>
-        <h1>{title}</h1>
-        <p>Type a messy name and get a clean display name, username, and slug.</p>
-        <textarea id="input" placeholder="Example: md WASI__portfolio site"></textarea>
-        <button id="run">Fix name</button>
-        <div id="result" class="result">Result will appear here.</div>
+        return html_preview_template(prompt)
+    if language in {"jsx", "tsx"}:
+        fence = "tsx" if language == "tsx" else "jsx"
+        prelude = '"use client";\n\n' if language == "tsx" else ""
+        component = re.sub(r"[^a-zA-Z0-9]+", " ", title).title().replace(" ", "") or "GeneratedApp"
+        return f"""```{fence}
+{prelude}import {{ useMemo, useState }} from "react";
+
+export default function {component}() {{
+  const [value, setValue] = useState("");
+  const cleaned = useMemo(() => value.trim().replace(/\\s+/g, " "), [value]);
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-slate-100 p-6 text-slate-950">
+      <section className="grid w-full max-w-3xl gap-5 rounded-2xl bg-white p-6 shadow-xl">
+        <header>
+          <p className="text-sm font-bold uppercase tracking-wide text-teal-700">Preview ready</p>
+          <h1 className="text-4xl font-black md:text-6xl">{title}</h1>
+          <p className="text-slate-500">A responsive React interface generated from your prompt.</p>
+        </header>
+        <textarea
+          className="min-h-32 rounded-xl border p-4"
+          value={{value}}
+          onChange={{(event) => setValue(event.target.value)}}
+          placeholder="Type something to test the UI"
+        />
+        <article className="rounded-xl bg-slate-50 p-4">
+          <strong>Output</strong>
+          <p>{{cleaned || "Waiting for input..."}}</p>
+        </article>
       </section>
     </main>
-    <script>
-      const input = document.querySelector("#input");
-      const result = document.querySelector("#result");
-      document.querySelector("#run").addEventListener("click", () => {{
-        const words = input.value.replace(/[_-]+/g, " ").replace(/[^a-zA-Z0-9 ]+/g, "").trim().split(/\\s+/).filter(Boolean);
-        const title = words.map(word => word[0].toUpperCase() + word.slice(1).toLowerCase()).join(" ");
-        result.innerHTML = `<strong>${{title || "No name yet"}}</strong><br>Username: ${{words.join("").toLowerCase()}}<br>Slug: ${{words.join("-").toLowerCase()}}`;
-      }});
-    </script>
-  </body>
-</html>
+  );
+}}
 ```"""
+    if language == "python":
+        return f'''```python
+def clean_text(value: str) -> str:
+    """Normalize spacing in user-provided text."""
+    return " ".join(value.strip().split())
+
+
+def main() -> None:
+    print("{title}")
+    raw = input("Enter text: ")
+    print("Result:", clean_text(raw))
+
+
+if __name__ == "__main__":
+    main()
+```'''
+    if language in {"javascript", "typescript"}:
+        type_text = ": string" if language == "typescript" else ""
+        return f'''```{language}
+function cleanText(value{type_text}){": string" if language == "typescript" else ""} {{
+  return value.trim().replace(/\\s+/g, " ");
+}}
+
+function main() {{
+  const result = cleanText("  Example input for {title}  ");
+  console.log(result);
+}}
+
+main();
+```'''
     return (
-        "I can generate this best with the local coding model stack.\n\n"
-        "Recommended local model order: Qwen2.5-Coder, DeepSeek-R1, DeepSeek-Coder, CodeLlama, StarCoder2.\n\n"
-        "Start Ollama and ask again for the full implementation, or connect Local Core for file-aware code generation."
+        f"```python\n"
+        f"def main() -> None:\n"
+        f"    print(\"{title}\")\n\n"
+        f"if __name__ == \"__main__\":\n"
+        f"    main()\n"
+        f"```"
     )

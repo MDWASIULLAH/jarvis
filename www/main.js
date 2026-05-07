@@ -1210,6 +1210,23 @@
                 return;
             }
 
+            if (lines.length > 1 && /:$/.test(lines[0]) && lines.slice(1).every((line) => /^[-*]\s+/.test(line))) {
+                const heading = document.createElement('p');
+                heading.className = 'answer-section-title';
+                heading.textContent = lines[0].replace(/:$/, '');
+                container.appendChild(heading);
+
+                const list = document.createElement('ul');
+                list.className = 'answer-list';
+                lines.slice(1).forEach((line) => {
+                    const item = document.createElement('li');
+                    appendInlineText(item, line.replace(/^[-*]\s+/, ''));
+                    list.appendChild(item);
+                });
+                container.appendChild(list);
+                return;
+            }
+
             if (lines.length && lines.every((line) => /^[-*]\s+/.test(line))) {
                 const list = document.createElement('ul');
                 list.className = 'answer-list';
@@ -1664,6 +1681,13 @@
             bridgeAvailable = false;
         }
 
+        if (isCloudHosted()) {
+            const cloudResponse = await callCloudAgent(correctedCommand);
+            if (cloudResponse) {
+                return cloudResponse;
+            }
+        }
+
         if (shouldAnswerCodeLocally(correctedCommand)) {
             return {
                 type: 'code',
@@ -1671,9 +1695,11 @@
             };
         }
 
-        const cloudResponse = await callCloudAgent(correctedCommand);
-        if (cloudResponse) {
-            return cloudResponse;
+        if (!isCloudHosted()) {
+            const cloudResponse = await callCloudAgent(correctedCommand);
+            if (cloudResponse) {
+                return cloudResponse;
+            }
         }
 
         if (isSearchOrRetrievalCommand(correctedCommand)) {
@@ -2282,7 +2308,7 @@
         };
     }
 
-    function titleFromPrompt(command, fallback = 'Jarvis Website') {
+    function titleFromPrompt(command, fallback = 'Smart Website') {
         const cleaned = command
             .toLowerCase()
             .replace(/\b(write|create|generate|make|code|program|script|for|a|an|my|the|using|with|in|html|css|javascript|js|react|nextjs|next\.js|next|python|website|webpage|web page|web site|site|app|improved|polished|responsive|version)\b/g, ' ')
@@ -2464,6 +2490,35 @@ export default function NameFixer() {
     </main>
   );
 }
+\`\`\``;
+        }
+
+        if (wantsPython && isCalculator) {
+            return `\`\`\`python
+def calculate(expression: str) -> float:
+    """Evaluate a basic calculator expression safely."""
+    allowed = set("0123456789+-*/(). ")
+    if not expression or any(char not in allowed for char in expression):
+        raise ValueError("Only numbers and + - * / ( ) are allowed.")
+    return eval(expression, {"__builtins__": {}}, {})
+
+
+def main() -> None:
+    print("Python Calculator")
+    print("Type an expression like 45 * 67, or q to quit.")
+
+    while True:
+        expression = input("> ").strip()
+        if expression.lower() in {"q", "quit", "exit"}:
+            break
+        try:
+            print(calculate(expression))
+        except Exception as error:
+            print(f"Error: {error}")
+
+
+if __name__ == "__main__":
+    main()
 \`\`\``;
         }
 
@@ -2662,14 +2717,16 @@ if __name__ == "__main__":
                 : kind === 'portfolio'
                     ? '<div class="grid"><article><span>Project</span><strong>Jarvis Assistant</strong><p>Secure desktop automation, code writing, and daily briefing tools.</p></article><article><span>Skill</span><strong>Frontend + AI</strong><p>Responsive UI, local actions, and safe approval flows.</p></article><article><span>Contact</span><strong>hello@example.com</strong><p>Replace this with your real contact details.</p></article></div>'
                     : kind === 'generic'
-                        ? '<div class="grid"><article><span>Feature</span><strong>Fast</strong><p>Designed to load quickly and work on mobile.</p></article><article><span>Feature</span><strong>Responsive</strong><p>The layout adapts cleanly across screen sizes.</p></article><article><span>Feature</span><strong>Ready</strong><p>Edit the content and connect your own logic.</p></article></div>'
+                        ? '<div class="grid"><article><span>01</span><strong>Clear layout</strong><p>Readable sections, strong hierarchy, and mobile-friendly spacing.</p></article><article><span>02</span><strong>Real controls</strong><p>Interactive buttons and cards make the page feel like a working product.</p></article><article><span>03</span><strong>Responsive</strong><p>The layout adapts cleanly from phone to desktop.</p></article></div><button id="actionBtn">Try interaction</button><p id="status" class="status">Ready.</p>'
                         : '<textarea id="nameInput" placeholder="Example: md WASI__portfolio site"></textarea><div class="actions"><button id="fixBtn">Fix name</button><button id="clearBtn" class="secondary">Clear</button></div><section id="results"></section>';
 
         const script = kind === 'task'
             ? 'const input=document.querySelector("#itemInput");const list=document.querySelector("#list");document.querySelector("#addBtn").onclick=()=>{if(!input.value.trim())return;const item=document.createElement("li");item.textContent=input.value;item.onclick=()=>item.classList.toggle("done");list.appendChild(item);input.value="";};'
             : kind === 'name'
                 ? 'const input=document.querySelector("#nameInput");const results=document.querySelector("#results");function render(){const words=input.value.replace(/[_-]+/g," ").replace(/[^a-zA-Z0-9 ]+/g,"").trim().split(/\\\\s+/).filter(Boolean);if(!words.length){results.innerHTML="<p>Type a name to fix it.</p>";return;}const title=words.map(w=>w[0].toUpperCase()+w.slice(1).toLowerCase()).join(" ");const slug=words.map(w=>w.toLowerCase()).join("-");results.innerHTML=`<div class="result"><span>Best display name</span><strong>${title}</strong></div><div class="result"><span>Website slug</span><strong>${slug}</strong></div>`;}document.querySelector("#fixBtn").onclick=render;document.querySelector("#clearBtn").onclick=()=>{input.value="";render();};input.oninput=render;render();'
-                : kind === 'generic' || kind === 'portfolio'
+                : kind === 'generic'
+                    ? 'document.querySelector("#actionBtn").addEventListener("click",()=>{document.querySelector("#status").textContent="Interaction working. Replace this with your app logic.";});'
+                    : kind === 'portfolio'
                     ? 'document.querySelectorAll("article").forEach((card)=>card.addEventListener("click",()=>card.classList.toggle("selected")));'
                     : '';
 
@@ -2682,23 +2739,24 @@ if __name__ == "__main__":
     <title>${title}</title>
     <style>
       * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: Inter, system-ui, sans-serif; color: #17202a; background: #f4f6f8; }
-      main { width: min(760px, 100%); display: grid; gap: 18px; }
-      .panel { padding: 22px; border: 1px solid #dde3ea; border-radius: 14px; background: white; box-shadow: 0 20px 48px rgba(31, 41, 55, 0.08); }
-      h1 { margin: 0 0 6px; font-size: clamp(2rem, 6vw, 3.5rem); }
-      p { margin: 0; color: #667085; line-height: 1.5; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: Inter, system-ui, sans-serif; color: #17202a; background: radial-gradient(circle at top left, rgba(20,184,166,.18), transparent 28rem), linear-gradient(135deg, #f8fafc, #eef2f7); }
+      main { width: min(980px, 100%); display: grid; gap: 18px; }
+      .panel { padding: clamp(22px, 5vw, 46px); border: 1px solid #dde3ea; border-radius: 18px; background: rgba(255,255,255,.94); box-shadow: 0 24px 70px rgba(31, 41, 55, 0.12); }
+      h1 { margin: 0 0 10px; font-size: clamp(2.4rem, 8vw, 5rem); line-height: .95; }
+      p { margin: 0; color: #667085; line-height: 1.6; }
       input, textarea { width: 100%; min-height: 44px; margin-top: 14px; padding: 12px; border: 1px solid #ccd5df; border-radius: 10px; font: inherit; }
       textarea { min-height: 132px; resize: vertical; }
       .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-      button { min-height: 40px; padding: 10px 14px; border: 0; border-radius: 10px; color: white; background: #1473e6; cursor: pointer; font-weight: 700; }
+      button { min-height: 44px; padding: 11px 15px; border: 0; border-radius: 12px; color: white; background: #0f766e; cursor: pointer; font-weight: 800; }
       button.secondary { color: #17202a; background: #edf2f7; }
       #results, ul { display: grid; gap: 10px; padding: 0; list-style: none; }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 16px; }
-      li, .result, article { display: grid; gap: 4px; padding: 14px; border: 1px solid #e4e7ec; border-radius: 10px; background: #fbfcfd; }
+      li, .result, article, .status { display: grid; gap: 6px; padding: 16px; border: 1px solid #e4e7ec; border-radius: 14px; background: #fbfcfd; }
       .done { text-decoration: line-through; opacity: .55; }
       .selected { border-color: #1473e6; box-shadow: 0 0 0 3px rgba(20, 115, 230, .12); }
       .result span, article span { color: #667085; font-size: 0.85rem; font-weight: 700; }
       .result strong, article strong { overflow-wrap: anywhere; }
+      @media (max-width: 620px) { body { padding: 14px; } .panel { border-radius: 14px; } .grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>

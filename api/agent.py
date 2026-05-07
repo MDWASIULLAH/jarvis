@@ -20,8 +20,11 @@ def _squash(value: str) -> str:
 
 
 def _clean_query(prompt: str) -> str:
+    normalized = _squash(prompt).lower()
+    if re.fullmatch(r"(daily\s+briefing|today'?s?\s+briefing|latest\s+news|today'?s?\s+news|latest\s+news\s+of\s+whole\s+world)", normalized):
+        return "latest world India business sports AI technology news"
     query = re.sub(r"^(search|google|find|look up)\s+", "", prompt, flags=re.IGNORECASE).strip()
-    query = re.sub(r"\b(tell me|give me|show me|latest|today|current)\b", " ", query, flags=re.IGNORECASE)
+    query = re.sub(r"\b(tell me|give me|show me|latest|today|current|daily|briefing)\b", " ", query, flags=re.IGNORECASE)
     query = _squash(query)
     return query or prompt
 
@@ -119,12 +122,15 @@ def _format_search_answer(prompt: str, results: list[dict]) -> str:
             "Try again in a moment, or connect Local Core for DDGS/SearXNG plus local scraping."
         )
 
-    lead = f"Here is what I found for {_clean_query(prompt)}."
+    lead = f"Direct answer: I found current results for {_clean_query(prompt)}."
     points = []
     for item in results[:3]:
         title = _squash(item.get("title", "Result"))
         content = _squash(item.get("content", ""))
-        points.append(f"- {title}: {content}" if content else f"- {title}")
+        if content:
+            points.append(f"- {title}: {content[:240]}")
+        else:
+            points.append(f"- {title}")
 
     sources = ["Sources:"]
     for index, item in enumerate(results[:5], start=1):
@@ -163,6 +169,15 @@ def _web_answer(prompt: str, intent: str) -> dict | None:
         return None
 
     query = _clean_query(prompt)
+    if news:
+        briefing = format_news_briefing(prompt, collect_rss_news(prompt, timeout=1.5))
+        if briefing:
+            return {
+                "type": "briefing",
+                "message": briefing["message"],
+                "briefing": briefing,
+            }
+
     results = _ddgs_search(query, news=news) or _duckduckgo_html_search(query)
     if news and not results:
         briefing = format_news_briefing(prompt, collect_rss_news(prompt, timeout=1.5))
