@@ -2766,8 +2766,8 @@ if __name__ == "__main__":
             terminal: parsed.terminal || null,
             plan: parsed.plan || null,
             action: parsed.action || '',
-            confirmCommand: parsed.confirmCommand || (isEmail ? 'confirm send email' : (isShare ? 'confirm share' : (isTerminal ? 'confirm terminal' : `confirm ${(parsed.action || 'action').replace('_', ' ')}`))),
-            cancelCommand: parsed.cancelCommand || (isEmail ? 'cancel email' : (isShare ? 'cancel share' : (isTerminal ? 'cancel action' : `cancel ${(parsed.action || 'action').replace('_', ' ')}`))),
+            confirmCommand: isEmail ? 'confirm send email' : (isShare ? 'confirm share' : (isTerminal ? 'confirm terminal' : `confirm ${(parsed.action || 'action').replace('_', ' ')}`)),
+            cancelCommand: isEmail ? 'cancel email' : (isShare ? 'cancel share' : (isTerminal ? 'cancel action' : `cancel ${(parsed.action || 'action').replace('_', ' ')}`)),
             browserOnly: Boolean(parsed.browserOnly),
         };
 

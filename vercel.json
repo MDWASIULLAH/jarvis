@@ -1,9 +1,14 @@
 {
   "version": 2,
   "builds": [
-    { "src": "frontend/package.json", "use": "@vercel/next" }
+    { "src": "api/*.py", "use": "@vercel/python" },
+    { "src": "www/**", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/frontend/$1" }
+    { "src": "/api/config", "dest": "/api/config.py" },
+    { "src": "/api/auth", "dest": "/api/auth.py" },
+    { "src": "/api/agent", "dest": "/api/agent.py" },
+    { "src": "/(.*\\.(?:css|js|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2))", "dest": "/www/$1" },
+    { "src": "/(.*)", "dest": "/www/index.html" }
   ]
 }

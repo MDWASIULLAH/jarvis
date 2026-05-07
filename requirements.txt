@@ -1,7 +1,4 @@
--r backend/requirements.txt
--r agent/requirements.txt
-
-# Legacy local connector support
-requests>=2.32
-eel>=0.16
-pyttsx3>=2.98
+beautifulsoup4
+ddgs
+duckduckgo_search
+requests
