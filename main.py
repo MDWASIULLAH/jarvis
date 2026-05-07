@@ -38,6 +38,7 @@ pywhatkit = None
 PYWHATKIT_UNAVAILABLE = False
 BRAIN_MODULE = None
 SKILLS_MODULE = None
+INTELLIGENCE_MODULE = None
 
 try:
     import pyttsx3
@@ -93,6 +94,14 @@ def _skills():
     if SKILLS_MODULE is None:
         SKILLS_MODULE = __import__("jarvis_skills")
     return SKILLS_MODULE
+
+
+def _intelligence():
+    global INTELLIGENCE_MODULE
+
+    if INTELLIGENCE_MODULE is None:
+        INTELLIGENCE_MODULE = __import__("jarvis_intelligence")
+    return INTELLIGENCE_MODULE
 
 
 def add_intent_example(*args, **kwargs):
@@ -219,6 +228,12 @@ DEFAULT_SETTINGS = {
     "daily_briefing": True,
     "whatsapp_number": "",
     "ollama_model": "qwen2.5-coder:7b",
+    "ollama_fallback_models": "deepseek-r1:7b,deepseek-coder:6.7b,codellama:7b,starcoder2:7b,mistral:7b,phi4,gemma3",
+    "news_region": "in-en",
+    "news_cache_minutes": 15,
+    "model_timeout_seconds": 18,
+    "prediction_model_enabled": False,
+    "autonomous_memory": True,
     "google_client_id": "",
     "supabase_url": "",
     "supabase_anon_key": "",
@@ -635,6 +650,9 @@ def _route_command(command: str) -> dict:
     if re.search(r"\b(today|latest|current|news|briefing)\b", normalized):
         route.update({"intent": "news", "search_needed": True})
         route["steps"] += ["Web Search / Retrieval", "Context + Docs", "LLM", "Final Answer"]
+    elif re.search(r"\b(predict|prediction|forecast|trend|risk analysis|future impact|probability)\b", normalized):
+        route.update({"intent": "prediction", "search_needed": True, "retrieval_needed": True})
+        route["steps"] += ["Live Signals", "Context + Docs", "Reasoning", "Final Answer"]
     elif re.search(r"\b(tell me about|what is|who is|where is|explain|describe|define|information about|details about)\b", normalized):
         route.update({"intent": "answer", "search_needed": True, "retrieval_needed": True})
         route["steps"] += ["RAG Memory", "Web Search / Retrieval", "Context + Docs", "LLM", "Final Answer"]
@@ -704,7 +722,7 @@ def _module_available(name: str) -> bool:
 
 def _search_stack_status(settings: dict | None = None) -> dict:
     current = settings or _load_settings()
-    return {
+    status = {
         "provider": "free-open-source",
         "ddgs": _module_available("duckduckgo_search") or _module_available("ddgs"),
         "searxng": bool(_squash(current.get("searxng_url", "")) or os.getenv("SEARXNG_URL", "")),
@@ -713,6 +731,11 @@ def _search_stack_status(settings: dict | None = None) -> dict:
         "beautifulsoup": _module_available("bs4"),
         "requests": _module_available("requests"),
     }
+    try:
+        status["advanced"] = _intelligence().optional_stack_status()
+    except Exception:
+        status["advanced"] = {}
+    return status
 
 
 def _safe_filename(name: str) -> str:
@@ -2352,14 +2375,39 @@ def _rag_prefix_for_prompt(command: str, route: dict) -> str:
     return ""
 
 
+def _looks_like_code_answer(message: str, language: str) -> bool:
+    text = str(message or "")
+    lowered = text.lower()
+    if "```" in text and any(token in lowered for token in ["def ", "class ", "function ", "<!doctype", "<html", "import ", "export ", "public class", "select "]):
+        return True
+    language_markers = {
+        "python": ["def ", "if __name__", "import ", "class "],
+        "html": ["<!doctype", "<html", "<style", "<script"],
+        "javascript": ["function ", "const ", "let ", "document."],
+        "typescript": ["function ", ": string", "interface ", "const "],
+        "jsx": ["export default", "useState", "return ("],
+        "tsx": ["export default", "useState", "return ("],
+        "java": ["public class", "static void main"],
+        "cpp": ["#include", "int main"],
+        "csharp": ["using System", "class "],
+        "php": ["<?php"],
+        "sql": ["select ", "create table", "insert into"],
+    }
+    return any(marker.lower() in lowered for marker in language_markers.get(language, []))
+
+
 def _code_from_prompt(command: str) -> str:
+    language = _detect_code_language(command)
     api_message = _api_reply(command)
-    if api_message:
+    if api_message and _looks_like_code_answer(api_message, language):
         return api_message
+
+    ollama_message = _ollama_reply(command)
+    if ollama_message and _looks_like_code_answer(ollama_message, language):
+        return ollama_message
 
     route = _route_command(command)
     prefix = _rag_prefix_for_prompt(command, route)
-    language = _detect_code_language(command)
     task = re.sub(r"\b(write|create|generate|make|code|program|script|in|using|with)\b", " ", command, flags=re.IGNORECASE)
     task = _squash(task) or "the requested task"
     normalized = _normalized(command)
@@ -2645,39 +2693,27 @@ def _ollama_reply(command: str) -> str | None:
         return None
 
     settings = _load_settings()
-    model = settings.get("ollama_model") or "gemma3"
     try:
         active_skill_context = skill_context(command)
     except Exception:
         active_skill_context = ""
-    payload = {
-        "model": model,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are Jarvis. Correct typos and answer with useful code or concise steps. "
-                    "Use the active skill rules when provided.\n"
-                    f"{active_skill_context}"
-                ),
-            },
-            {"role": "user", "content": command},
-        ],
-        "stream": False,
-    }
     try:
-        request = urllib.request.Request(
-            "http://127.0.0.1:11434/api/chat",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
+        timeout = float(settings.get("model_timeout_seconds") or 18)
+        timeout = min(max(timeout, 6.0), 60.0)
+        result = _intelligence().ollama_chat(
+            command,
+            settings=settings,
+            skill_context=active_skill_context,
+            timeout=timeout,
         )
-        with urllib.request.urlopen(request, timeout=4) as response:
-            data = json.loads(response.read().decode("utf-8"))
-        return _squash(data.get("message", {}).get("content", ""))
+        if result and result.get("message"):
+            model = result.get("model") or "local model"
+            return f"{result['message']}\n\nModel: {model}"
     except Exception:
         OLLAMA_UNAVAILABLE_UNTIL = time.time() + 60
         return None
+    OLLAMA_UNAVAILABLE_UNTIL = time.time() + 60
+    return None
 
 
 def _open_source_briefing(command: str = "") -> dict | None:
@@ -2733,6 +2769,13 @@ def _open_source_briefing(command: str = "") -> dict | None:
             )
 
     if not sections:
+        try:
+            rss_items = _intelligence().collect_rss_news(command, max_items=12, timeout=1.5)
+            rss_briefing = _intelligence().format_news_briefing(command, rss_items)
+            if rss_briefing:
+                return rss_briefing
+        except Exception:
+            pass
         return None
 
     today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -2770,6 +2813,39 @@ def _daily_briefing(command: str = "") -> dict:
     return {"message": message, "sections": [], "provider": "free-open-source"}
 
 
+def _prediction_answer(command: str) -> str:
+    evidence = []
+    try:
+        evidence = _intelligence().collect_rss_news(command, max_items=8, timeout=1.5)
+    except Exception:
+        evidence = []
+
+    settings = _load_settings()
+    if evidence and settings.get("prediction_model_enabled"):
+        context = "\n".join(
+            f"{item.get('title', '')} - {item.get('summary', '')} ({item.get('source', '')})"
+            for item in evidence[:6]
+        )
+        model_prompt = (
+            f"Analyze this forecast request with facts, assumptions, probabilities, risks, and next signals.\n"
+            f"Request: {command}"
+        )
+        try:
+            result = _intelligence().ollama_chat(
+                model_prompt,
+                settings=settings,
+                skill_context=skill_context(command),
+                extra_context=context,
+                timeout=12,
+            )
+            if result and result.get("message"):
+                return f"{result['message']}\n\nModel: {result.get('model', 'local model')}"
+        except Exception:
+            pass
+
+    return _intelligence().prediction_report(command, evidence)
+
+
 def _api_reply(command: str) -> str | None:
     settings = _load_settings()
     if not settings.get("api_enabled") or not settings.get("api_key"):
@@ -2779,17 +2855,21 @@ def _api_reply(command: str) -> str | None:
         active_skill_context = skill_context(command)
     except Exception:
         active_skill_context = ""
+    try:
+        system_prompt = _intelligence().build_system_prompt(command, skill_context=active_skill_context)
+    except Exception:
+        system_prompt = (
+            "You are Jarvis, a secure desktop assistant. Correct obvious typos, "
+            "answer concisely, and never claim an action was completed unless a tool did it. "
+            "Use the active skill rules when provided.\n"
+            f"{active_skill_context}"
+        )
     payload = {
         "model": settings.get("api_model") or "gpt-4o-mini",
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are Jarvis, a secure desktop assistant. Correct obvious typos, "
-                    "answer concisely, and never claim an action was completed unless a tool did it. "
-                    "Use the active skill rules when provided.\n"
-                    f"{active_skill_context}"
-                ),
+                "content": system_prompt,
             },
             {"role": "user", "content": command},
         ],
@@ -3115,6 +3195,10 @@ def _local_ai_reply(command: str) -> str:
     if api_message:
         return api_message
 
+    ollama_message = _ollama_reply(command)
+    if ollama_message:
+        return ollama_message
+
     return (
         "I can answer questions, search live news, write code, open apps, read links, draft email with approval, "
         "or use RAG memory. Ask naturally, for example: tell me about KIIT University."
@@ -3386,6 +3470,9 @@ def process_command(command):
 
     if re.search(r"\b(date|day)\b", normalized):
         return _response(f"Today is {datetime.datetime.now().strftime('%A, %B %d, %Y')}.")
+
+    if re.search(r"\b(predict|prediction|forecast|trend analysis|future impact|risk analysis|likely to|probability)\b", normalized):
+        return _response(_prediction_answer(text), "answer", route=_route_command(text))
 
     crawl_message = _crawl_command(text)
     if crawl_message:

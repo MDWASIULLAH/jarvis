@@ -12,6 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from jarvis_agent import plan_task  # noqa: E402
+from jarvis_intelligence import cloud_code_response, collect_rss_news, format_news_briefing  # noqa: E402
 
 
 def _squash(value: str) -> str:
@@ -135,6 +136,17 @@ def _format_search_answer(prompt: str, results: list[dict]) -> str:
     return "\n\n".join([lead, "Key points:\n" + "\n".join(points), "\n".join(sources)])
 
 
+def _cloud_code_answer(prompt: str) -> dict | None:
+    if not re.search(r"\b(write|create|generate|make|build|fix|debug)\b", prompt, re.IGNORECASE):
+        return None
+    if not re.search(r"\b(code|program|script|python|javascript|typescript|html|css|react|next|website|app|calculator)\b", prompt, re.IGNORECASE):
+        return None
+    return {
+        "type": "code",
+        "message": cloud_code_response(prompt),
+    }
+
+
 def _web_answer(prompt: str, intent: str) -> dict | None:
     if _is_identity(prompt):
         return {
@@ -152,6 +164,14 @@ def _web_answer(prompt: str, intent: str) -> dict | None:
 
     query = _clean_query(prompt)
     results = _ddgs_search(query, news=news) or _duckduckgo_html_search(query)
+    if news and not results:
+        briefing = format_news_briefing(prompt, collect_rss_news(prompt, timeout=1.5))
+        if briefing:
+            return {
+                "type": "briefing",
+                "message": briefing["message"],
+                "briefing": briefing,
+            }
     message = _format_search_answer(prompt, results)
     return {
         "type": "briefing" if news else "answer",
@@ -189,6 +209,11 @@ class handler(BaseHTTPRequestHandler):
             return
 
         plan = plan_task(prompt)
+        code_answer = _cloud_code_answer(prompt)
+        if code_answer:
+            self._send(200, code_answer)
+            return
+
         web_answer = _web_answer(prompt, plan.get("intent", "answer"))
         if web_answer:
             self._send(200, web_answer)

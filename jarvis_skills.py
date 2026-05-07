@@ -47,6 +47,22 @@ DEFAULT_SKILLS = [
         ),
     },
     {
+        "id": "model_router",
+        "title": "Model Router",
+        "category": "reasoning",
+        "intent": "answer",
+        "triggers": ["ollama", "qwen", "deepseek", "codellama", "starcoder", "model", "reason"],
+        "examples": [
+            "write production code with the best local model",
+            "reason deeply about this bug",
+            "use coding model",
+        ],
+        "text": (
+            "Route coding work to Qwen2.5-Coder first, then DeepSeek or other local models. "
+            "Use reasoning models for analysis, risk, prediction, and planning. Fall back gracefully when a model is not installed."
+        ),
+    },
+    {
         "id": "frontend_builder",
         "title": "Frontend Builder",
         "category": "coding",
@@ -113,6 +129,38 @@ DEFAULT_SKILLS = [
         ),
     },
     {
+        "id": "news_analyst",
+        "title": "Live News Analyst",
+        "category": "research",
+        "intent": "news",
+        "triggers": ["breaking", "reuters", "bbc", "al jazeera", "cnbc", "world events", "sources"],
+        "examples": [
+            "compare today's AI news sources",
+            "give me business news with sources",
+            "summarize world events today",
+        ],
+        "text": (
+            "Use RSS, DDGS, SearXNG, and article extraction before answering live-news prompts. "
+            "Group news by category, include source names and links, summarize first, and avoid unsupported claims."
+        ),
+    },
+    {
+        "id": "prediction_reasoner",
+        "title": "Prediction Reasoner",
+        "category": "reasoning",
+        "intent": "prediction",
+        "triggers": ["predict", "forecast", "trend", "probability", "risk", "future impact"],
+        "examples": [
+            "predict the AI trend this month",
+            "forecast market risk from these news items",
+            "what is likely to happen next",
+        ],
+        "text": (
+            "Separate facts from forecasts. Give assumptions, likely scenarios, confidence, risk factors, and signals to watch. "
+            "Never present predictions as certain facts."
+        ),
+    },
+    {
         "id": "desktop_operator",
         "title": "Desktop Operator",
         "category": "actions",
@@ -126,6 +174,22 @@ DEFAULT_SKILLS = [
         "text": (
             "For desktop actions, parse the safe target instead of running raw user text. Open known apps and websites directly. "
             "Ask approval before terminal, shutdown, sharing, or repeated automation."
+        ),
+    },
+    {
+        "id": "autonomous_executor",
+        "title": "Autonomous Executor",
+        "category": "actions",
+        "intent": "open",
+        "triggers": ["agent", "workflow", "execute", "do task", "continue", "approve", "autonomous"],
+        "examples": [
+            "create a project then run it",
+            "open youtube shorts and keep scrolling",
+            "after approval continue the workflow",
+        ],
+        "text": (
+            "For multi-step tasks, create a short plan, ask approval for risky steps, then continue automatically after approval. "
+            "Report progress and failures clearly without pretending blocked actions succeeded."
         ),
     },
     {

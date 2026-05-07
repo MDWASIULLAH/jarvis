@@ -1,0 +1,22 @@
+# Optional advanced local capabilities for Jarvis.
+# Install only the groups you need. Core Jarvis still works with requirements.txt.
+
+# Desktop and voice helpers
+pyttsx3
+pywhatkit
+pyautogui
+pywin32; platform_system == "Windows"
+
+# Browser automation and scraping
+playwright
+crawl4ai
+scrapy
+
+# Local memory, data, and intent training
+numpy
+pandas
+xgboost
+chromadb
+
+# Kaggle public dataset import helper
+kagglehub

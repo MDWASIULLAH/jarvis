@@ -11,8 +11,10 @@ It is built to behave like an approval-first autonomous assistant: Jarvis unders
 - Local desktop app opening through the Local Core connector
 - Email and sharing drafts with permission
 - Free DDGS/SearXNG-ready search stack
+- RSS-backed live news fallback for global and India news
 - Local RAG memory and skill packs
-- Coding assistant defaults for Ollama + Qwen2.5-Coder
+- Multi-model Ollama routing for Qwen2.5-Coder, DeepSeek, CodeLlama, StarCoder2, Mistral, Phi, and Gemma
+- Prediction and risk-analysis responses that separate facts from forecasts
 - Vercel-ready web UI and Python planner API
 - Cloud web mode that does not require localhost for web-safe tasks
 - Login/sign-up UI with Google Identity Services support
@@ -80,6 +82,13 @@ http://127.0.0.1:8765/index.html
 pip install -r requirements.txt
 ```
 
+Optional advanced local tools:
+
+```bat
+pip install -r requirements-optional.txt
+python -m playwright install chromium
+```
+
 Optional local coding model setup:
 
 ```bat
@@ -117,14 +126,48 @@ Jarvis uses free/open-source search and scraping fallbacks:
 
 ## Recommended Local Coding Models
 
-Jarvis is configured to prefer Ollama with Qwen2.5-Coder locally:
+Jarvis is configured to prefer Ollama with Qwen2.5-Coder locally, then fall back through DeepSeek, CodeLlama, StarCoder2, Mistral, Phi, or Gemma when those models are installed:
 
 ```bat
 ollama pull qwen2.5-coder:7b
 ollama pull deepseek-r1:7b
+ollama pull deepseek-coder:6.7b
+ollama pull codellama:7b
+ollama pull starcoder2:7b
 ```
 
-Qwen2.5-Coder is the primary coding model. DeepSeek R1, Phi, Mistral, Gemma, or other Ollama models can be used as fallback by changing `ollama_model` in local settings.
+Qwen2.5-Coder is the primary coding model. DeepSeek R1 is preferred for reasoning and prediction. Jarvis checks installed Ollama models and chooses the best available local model for the prompt.
+
+## Advanced Intelligence Layer
+
+`jarvis_intelligence.py` adds modular intelligence without replacing the current UI or local core:
+
+- coding model routing through Ollama
+- direct-answer-first system prompts
+- RSS news ingestion from sources such as BBC, Al Jazeera, NDTV, Times of India, The Hindu, CNBC, DW, France24, and NHK
+- prediction reports with facts, assumptions, confidence, and risks
+- optional stack detection for Playwright, Crawl4AI, Scrapy, pyautogui, pywin32, ChromaDB, FAISS, NumPy, Pandas, and XGBoost
+
+The default flow is:
+
+```text
+User Prompt
+  -> Intent Router
+  -> RAG / Search / News / Model Router
+  -> Jarvis Answer or Approval Card
+  -> Local Core Execution after approval
+```
+
+## Live News
+
+Jarvis first tries DDGS/SearXNG for live search. If those return no results, it falls back to RSS feeds and formats clean category briefings with source links. Example prompts:
+
+```text
+business news
+latest AI news
+sports news today
+predict the AI trend this week
+```
 
 ## Security
 
